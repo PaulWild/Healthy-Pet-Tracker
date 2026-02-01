@@ -35,7 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.healthypettracker.data.local.entity.FoodType
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,10 +47,15 @@ fun AddFoodScreen(
     val foodType by viewModel.foodType.collectAsState()
     val brandName by viewModel.brandName.collectAsState()
     val amountGrams by viewModel.amountGrams.collectAsState()
-    val saveComplete by viewModel.saveComplete.collectAsState()
 
-    LaunchedEffect(saveComplete) {
-        if (saveComplete) {
+    LaunchedEffect(Unit) {
+        viewModel.saveComplete.collect {
+            onNavigateBack()
+        }
+    }
+
+    LaunchedEffect(viewModel.isMissingCatId) {
+        if (viewModel.isMissingCatId) {
             onNavigateBack()
         }
     }

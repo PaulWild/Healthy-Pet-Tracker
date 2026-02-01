@@ -10,9 +10,9 @@ import com.example.healthypettracker.MainActivity
 import com.example.healthypettracker.R
 
 object NotificationHelper {
-    private const val REQUEST_CODE_OPEN_APP = 1000
-    private const val REQUEST_CODE_MARK_GIVEN = 2000
-    private const val REQUEST_CODE_SNOOZE = 3000
+    private const val REQUEST_CODE_OPEN_APP_OFFSET = 0x20000000
+    private const val REQUEST_CODE_MARK_GIVEN_OFFSET = 0x30000000
+    private const val REQUEST_CODE_SNOOZE_OFFSET = 0x40000000
 
     fun showMedicineReminder(
         context: Context,
@@ -28,7 +28,7 @@ object NotificationHelper {
         }
         val openAppPendingIntent = PendingIntent.getActivity(
             context,
-            REQUEST_CODE_OPEN_APP + scheduleId.toInt(),
+            (scheduleId.hashCode() and 0x7FFFFFFF) xor REQUEST_CODE_OPEN_APP_OFFSET,
             openAppIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -40,7 +40,7 @@ object NotificationHelper {
         }
         val markGivenPendingIntent = PendingIntent.getBroadcast(
             context,
-            REQUEST_CODE_MARK_GIVEN + scheduleId.toInt(),
+            (scheduleId.hashCode() and 0x7FFFFFFF) xor REQUEST_CODE_MARK_GIVEN_OFFSET,
             markGivenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -55,7 +55,7 @@ object NotificationHelper {
         }
         val snoozePendingIntent = PendingIntent.getBroadcast(
             context,
-            REQUEST_CODE_SNOOZE + scheduleId.toInt(),
+            (scheduleId.hashCode() and 0x7FFFFFFF) xor REQUEST_CODE_SNOOZE_OFFSET,
             snoozeIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -79,13 +79,16 @@ object NotificationHelper {
             .build()
 
         try {
-            NotificationManagerCompat.from(context).notify(scheduleId.toInt(), notification)
+            NotificationManagerCompat.from(context).notify(
+                scheduleId.hashCode() and 0x7FFFFFFF,
+                notification
+            )
         } catch (e: SecurityException) {
             // Notification permission not granted
         }
     }
 
     fun cancelNotification(context: Context, scheduleId: Long) {
-        NotificationManagerCompat.from(context).cancel(scheduleId.toInt())
+        NotificationManagerCompat.from(context).cancel(scheduleId.hashCode() and 0x7FFFFFFF)
     }
 }

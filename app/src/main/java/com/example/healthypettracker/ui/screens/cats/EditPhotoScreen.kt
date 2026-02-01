@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.canhub.cropper.CropImageView
 import com.example.healthypettracker.ui.navigation.BottomBarConfig
 import com.example.healthypettracker.ui.navigation.BottomBarState
@@ -45,23 +45,26 @@ fun EditPhotoScreen(
     val composeContext = LocalContext.current
 
     LaunchedEffect(Unit) {
-        bottomBarState.config = BottomBarConfig.SaveCancel(
-            onSave = {
-                val cropped = cropViewRef.value?.getCroppedImage()
-                if (cropped != null) {
-                    val uri = saveBitmapToInternalStorage(
-                        context = composeContext,
-                        bitmap = cropped
-                    )
-                    viewModel.savePhoto(uri)
-                }
-            },
-            onCancel = { },
-            saveText = "Save"
+        bottomBarState.updateConfig(
+            BottomBarConfig.SaveCancel(
+                onSave = {
+                    val cropped = cropViewRef.value?.getCroppedImage()
+                    if (cropped != null) {
+                        val uri = saveBitmapToInternalStorage(
+                            context = composeContext,
+                            bitmap = cropped
+                        )
+                        viewModel.savePhoto(uri)
+                    }
+                },
+                onCancel = { },
+                saveText = "Save"
+            )
         )
     }
     DisposableEffect(Unit) {
         onDispose {
+            cropViewRef.value = null
             bottomBarState.clear()
         }
     }

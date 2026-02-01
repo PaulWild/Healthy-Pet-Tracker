@@ -1,8 +1,6 @@
 package com.example.healthypettracker.data.local
 
-import android.content.Context
 import androidx.room.Database
-import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.healthypettracker.data.local.dao.CatDao
@@ -29,7 +27,7 @@ import com.example.healthypettracker.data.local.entity.WeightEntry
         DiaryNote::class
     ],
     version = 1,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -38,21 +36,4 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun weightDao(): WeightDao
     abstract fun foodDao(): FoodDao
     abstract fun diaryDao(): DiaryDao
-
-    companion object {
-        @Volatile
-        private var INSTANCE: AppDatabase? = null
-
-        fun getInstance(context: Context): AppDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "healthy_pet_tracker_database"
-                ).build()
-                INSTANCE = instance
-                instance
-            }
-        }
-    }
 }

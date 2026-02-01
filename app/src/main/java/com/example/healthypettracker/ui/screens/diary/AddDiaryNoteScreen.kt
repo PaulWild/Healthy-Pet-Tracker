@@ -33,7 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.healthypettracker.data.local.entity.DiaryCategory
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,10 +45,9 @@ fun AddDiaryNoteScreen(
     val title by viewModel.title.collectAsState()
     val content by viewModel.content.collectAsState()
     val category by viewModel.category.collectAsState()
-    val saveComplete by viewModel.saveComplete.collectAsState()
 
-    LaunchedEffect(saveComplete) {
-        if (saveComplete) {
+    LaunchedEffect(Unit) {
+        viewModel.saveComplete.collect {
             onNavigateBack()
         }
     }

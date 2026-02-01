@@ -41,15 +41,29 @@ class MedicineReminderReceiver : BroadcastReceiver() {
                 )
 
                 // Reschedule for next occurrence
-                rescheduleNextAlarm(context, scheduleId, medicineName, catName, dosage)
+                val pendingResult = goAsync()
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        rescheduleNextAlarm(scheduleId, medicineName, catName, dosage)
+                    } finally {
+                        pendingResult.finish()
+                    }
+                }
             }
 
             ACTION_MARK_GIVEN -> {
-                // Log the medicine as given
-                logMedicineGiven(context, medicineId)
-
-                // Cancel the notification
+                // Cancel the notification first (synchronous)
                 NotificationHelper.cancelNotification(context, scheduleId)
+
+                // Log the medicine as given
+                val pendingResult = goAsync()
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        logMedicineGiven(medicineId)
+                    } finally {
+                        pendingResult.finish()
+                    }
+                }
             }
 
             ACTION_SNOOZE -> {
@@ -67,36 +81,30 @@ class MedicineReminderReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun rescheduleNextAlarm(
-        context: Context,
+    private suspend fun rescheduleNextAlarm(
         scheduleId: Long,
         medicineName: String,
         catName: String,
         dosage: String?
     ) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val schedule = medicineRepository.getScheduleById(scheduleId)
-            if (schedule != null) {
-                medicineAlarmScheduler.scheduleAlarm(
-                    schedule,
-                    medicineName,
-                    catName,
-                    dosage
-                )
-            }
+        val schedule = medicineRepository.getScheduleById(scheduleId)
+        if (schedule != null) {
+            medicineAlarmScheduler.scheduleAlarm(
+                schedule,
+                medicineName,
+                catName,
+                dosage
+            )
         }
     }
 
-    private fun logMedicineGiven(context: Context, medicineId: Long) {
-
-        CoroutineScope(Dispatchers.IO).launch {
-            val log = MedicineLog(
-                medicineId = medicineId,
-                administeredAt = LocalDateTime.now(),
-                wasSkipped = false
-            )
-            medicineRepository.insertLog(log)
-        }
+    private suspend fun logMedicineGiven(medicineId: Long) {
+        val log = MedicineLog(
+            medicineId = medicineId,
+            administeredAt = LocalDateTime.now(),
+            wasSkipped = false
+        )
+        medicineRepository.insertLog(log)
     }
 
     companion object {

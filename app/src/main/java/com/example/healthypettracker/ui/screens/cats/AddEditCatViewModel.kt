@@ -7,9 +7,11 @@ import com.example.healthypettracker.data.local.entity.Cat
 import com.example.healthypettracker.domain.repository.CatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -32,8 +34,11 @@ class AddEditCatViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _saveComplete = MutableStateFlow(false)
-    val saveComplete: StateFlow<Boolean> = _saveComplete.asStateFlow()
+    private val _saveComplete = Channel<Unit>(Channel.BUFFERED)
+    val saveComplete = _saveComplete.receiveAsFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
 
     val isEditMode = catId != null
 
@@ -46,10 +51,14 @@ class AddEditCatViewModel @Inject constructor(
     private fun loadCat(catId: Long) {
         viewModelScope.launch {
             _isLoading.value = true
-            catRepository.getCatById(catId)?.let { cat ->
-                _name.value = cat.name
-                _breed.value = cat.breed ?: ""
-                _birthDate.value = cat.birthDate
+            try {
+                catRepository.getCatById(catId)?.let { cat ->
+                    _name.value = cat.name
+                    _breed.value = cat.breed ?: ""
+                    _birthDate.value = cat.birthDate
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to load cat: ${e.message}"
             }
             _isLoading.value = false
         }
@@ -67,25 +76,33 @@ class AddEditCatViewModel @Inject constructor(
         _birthDate.value = date
     }
 
+    fun clearError() {
+        _error.value = null
+    }
+
     fun save() {
         if (_name.value.isBlank()) return
 
         viewModelScope.launch {
             _isLoading.value = true
-            val cat = Cat(
-                id = catId ?: 0,
-                name = _name.value.trim(),
-                breed = _breed.value.trim().ifBlank { null },
-                birthDate = _birthDate.value
-            )
+            try {
+                val cat = Cat(
+                    id = catId ?: 0,
+                    name = _name.value.trim(),
+                    breed = _breed.value.trim().ifBlank { null },
+                    birthDate = _birthDate.value
+                )
 
-            if (catId != null) {
-                catRepository.updateCat(cat)
-            } else {
-                catRepository.insertCat(cat)
+                if (catId != null) {
+                    catRepository.updateCat(cat)
+                } else {
+                    catRepository.insertCat(cat)
+                }
+                _saveComplete.send(Unit)
+            } catch (e: Exception) {
+                _error.value = "Failed to save: ${e.message}"
             }
             _isLoading.value = false
-            _saveComplete.value = true
         }
     }
 }

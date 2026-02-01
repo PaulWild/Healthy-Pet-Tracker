@@ -1,5 +1,6 @@
 package com.example.healthypettracker.ui.screens.settings
 
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
@@ -24,25 +25,21 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.healthypettracker.notification.PermissionHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 enum class WeightUnit(val displayName: String) {
@@ -51,23 +48,36 @@ enum class WeightUnit(val displayName: String) {
 }
 
 @HiltViewModel
-class SettingsViewModel @Inject constructor() : ViewModel() {
+class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ViewModel() {
     private val _weightUnit = MutableStateFlow(WeightUnit.METRIC)
     val weightUnit: StateFlow<WeightUnit> = _weightUnit.asStateFlow()
 
     private val _notificationsEnabled = MutableStateFlow(true)
     val notificationsEnabled: StateFlow<Boolean> = _notificationsEnabled.asStateFlow()
 
+    private val _hasNotificationPermission = MutableStateFlow(
+        PermissionHelper.hasNotificationPermission(context)
+    )
+    val hasNotificationPermission: StateFlow<Boolean> = _hasNotificationPermission.asStateFlow()
+
+    private val _hasExactAlarmPermission = MutableStateFlow(
+        PermissionHelper.hasExactAlarmPermission(context)
+    )
+    val hasExactAlarmPermission: StateFlow<Boolean> = _hasExactAlarmPermission.asStateFlow()
+
     fun setWeightUnit(unit: WeightUnit) {
-        viewModelScope.launch {
-            _weightUnit.value = unit
-        }
+        _weightUnit.value = unit
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            _notificationsEnabled.value = enabled
-        }
+        _notificationsEnabled.value = enabled
+    }
+
+    fun refreshPermissions() {
+        _hasNotificationPermission.value = PermissionHelper.hasNotificationPermission(context)
+        _hasExactAlarmPermission.value = PermissionHelper.hasExactAlarmPermission(context)
     }
 }
 
@@ -80,28 +90,14 @@ fun SettingsScreen(
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val weightUnit by viewModel.weightUnit.collectAsState()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
+    val hasNotificationPermission by viewModel.hasNotificationPermission.collectAsState()
+    val hasExactAlarmPermission by viewModel.hasExactAlarmPermission.collectAsState()
 
-    // Track permission states and refresh when returning from settings
-    var hasNotificationPermission by remember {
-        mutableStateOf(
-            PermissionHelper.hasNotificationPermission(
-                context
-            )
-        )
-    }
-    var hasExactAlarmPermission by remember {
-        mutableStateOf(
-            PermissionHelper.hasExactAlarmPermission(
-                context
-            )
-        )
-    }
-
+    // Refresh permissions when returning from settings
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                hasNotificationPermission = PermissionHelper.hasNotificationPermission(context)
-                hasExactAlarmPermission = PermissionHelper.hasExactAlarmPermission(context)
+                viewModel.refreshPermissions()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

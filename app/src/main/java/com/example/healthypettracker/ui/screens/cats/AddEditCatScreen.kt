@@ -33,7 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -47,11 +47,10 @@ fun AddEditCatScreen(
     val name by viewModel.name.collectAsState()
     val breed by viewModel.breed.collectAsState()
     val birthDate by viewModel.birthDate.collectAsState()
-    val saveComplete by viewModel.saveComplete.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
 
-    LaunchedEffect(saveComplete) {
-        if (saveComplete) {
+    LaunchedEffect(Unit) {
+        viewModel.saveComplete.collect {
             onNavigateBack()
         }
     }

@@ -72,6 +72,11 @@ sealed interface BottomBarConfig {
 
 class BottomBarState {
     var config: BottomBarConfig by mutableStateOf(BottomBarConfig.Default)
+        private set
+
+    fun updateConfig(newConfig: BottomBarConfig) {
+        config = newConfig
+    }
 
     fun clear() {
         config = BottomBarConfig.Default

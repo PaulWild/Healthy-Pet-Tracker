@@ -22,29 +22,33 @@ class BootReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var medicineAlarmScheduler: MedicineAlarmScheduler
-    
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            rescheduleAllAlarms()
+            val pendingResult = goAsync()
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    rescheduleAllAlarms()
+                } finally {
+                    pendingResult.finish()
+                }
+            }
         }
     }
 
-    private fun rescheduleAllAlarms() {
+    private suspend fun rescheduleAllAlarms() {
+        val activeSchedules = medicineRepository.getAllActiveSchedules()
 
-        CoroutineScope(Dispatchers.IO).launch {
-            val activeSchedules = medicineRepository.getAllActiveSchedules()
-
-            for (schedule in activeSchedules) {
-                val medicine = medicineRepository.getMedicineById(schedule.medicineId)
-                if (medicine != null && medicine.isActive) {
-                    val cat = catRepository.getCatById(medicine.catId)
-                    medicineAlarmScheduler.scheduleAlarm(
-                        schedule,
-                        medicine.name,
-                        cat?.name ?: "your cat",
-                        medicine.dosage
-                    )
-                }
+        for (schedule in activeSchedules) {
+            val medicine = medicineRepository.getMedicineById(schedule.medicineId)
+            if (medicine != null && medicine.isActive) {
+                val cat = catRepository.getCatById(medicine.catId)
+                medicineAlarmScheduler.scheduleAlarm(
+                    schedule,
+                    medicine.name,
+                    cat?.name ?: "your cat",
+                    medicine.dosage
+                )
             }
         }
     }

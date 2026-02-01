@@ -18,6 +18,7 @@ class MedicineAlarmScheduler(private val context: Context) {
 
     companion object {
         private const val TAG = "AlarmScheduler"
+        private const val SNOOZE_REQUEST_CODE_OFFSET = 0x10000000
     }
 
     fun canScheduleExactAlarms(): Boolean {
@@ -47,7 +48,7 @@ class MedicineAlarmScheduler(private val context: Context) {
 
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            schedule.id.toInt(),
+            schedule.id.hashCode() and 0x7FFFFFFF,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -97,7 +98,7 @@ class MedicineAlarmScheduler(private val context: Context) {
 
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            (scheduleId.toInt() + 10000), // Different request code for snooze
+            (scheduleId.hashCode() and 0x7FFFFFFF) xor SNOOZE_REQUEST_CODE_OFFSET,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -130,7 +131,7 @@ class MedicineAlarmScheduler(private val context: Context) {
         val intent = Intent(context, MedicineReminderReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            scheduleId.toInt(),
+            scheduleId.hashCode() and 0x7FFFFFFF,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

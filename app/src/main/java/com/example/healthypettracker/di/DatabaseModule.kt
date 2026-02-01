@@ -1,6 +1,7 @@
 package com.example.healthypettracker.di
 
 import android.content.Context
+import androidx.room.Room
 import com.example.healthypettracker.data.local.AppDatabase
 import dagger.Module
 import dagger.Provides
@@ -17,7 +18,11 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(
         @ApplicationContext context: Context
-    ): AppDatabase = AppDatabase.getInstance(context)
+    ): AppDatabase = Room.databaseBuilder(
+        context.applicationContext,
+        AppDatabase::class.java,
+        "healthy_pet_tracker_database"
+    ).build()
 
     @Provides
     fun provideCatDao(db: AppDatabase) = db.catDao()

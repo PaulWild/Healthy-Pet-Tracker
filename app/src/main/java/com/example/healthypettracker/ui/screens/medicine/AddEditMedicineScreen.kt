@@ -28,16 +28,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.healthypettracker.data.local.entity.Medicine
 import com.example.healthypettracker.domain.repository.MedicineRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -62,8 +64,11 @@ class AddEditMedicineViewModel @Inject constructor(
     private val _isActive = MutableStateFlow(true)
     val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
 
-    private val _saveComplete = MutableStateFlow(false)
-    val saveComplete: StateFlow<Boolean> = _saveComplete.asStateFlow()
+    private val _saveComplete = Channel<Unit>(Channel.BUFFERED)
+    val saveComplete = _saveComplete.receiveAsFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
 
     private var loadedCatId: Long? = catId
 
@@ -77,12 +82,16 @@ class AddEditMedicineViewModel @Inject constructor(
 
     private fun loadMedicine(medicineId: Long) {
         viewModelScope.launch {
-            medicineRepository.getMedicineById(medicineId)?.let { medicine ->
-                _name.value = medicine.name
-                _dosage.value = medicine.dosage ?: ""
-                _instructions.value = medicine.instructions ?: ""
-                _isActive.value = medicine.isActive
-                loadedCatId = medicine.catId
+            try {
+                medicineRepository.getMedicineById(medicineId)?.let { medicine ->
+                    _name.value = medicine.name
+                    _dosage.value = medicine.dosage ?: ""
+                    _instructions.value = medicine.instructions ?: ""
+                    _isActive.value = medicine.isActive
+                    loadedCatId = medicine.catId
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to load medicine: ${e.message}"
             }
         }
     }
@@ -103,26 +112,34 @@ class AddEditMedicineViewModel @Inject constructor(
         _isActive.value = isActive
     }
 
+    fun clearError() {
+        _error.value = null
+    }
+
     fun save() {
         val currentCatId = loadedCatId ?: return
         if (_name.value.isBlank()) return
 
         viewModelScope.launch {
-            val medicine = Medicine(
-                id = medicineId ?: 0,
-                catId = currentCatId,
-                name = _name.value.trim(),
-                dosage = _dosage.value.trim().ifBlank { null },
-                instructions = _instructions.value.trim().ifBlank { null },
-                isActive = _isActive.value
-            )
+            try {
+                val medicine = Medicine(
+                    id = medicineId ?: 0,
+                    catId = currentCatId,
+                    name = _name.value.trim(),
+                    dosage = _dosage.value.trim().ifBlank { null },
+                    instructions = _instructions.value.trim().ifBlank { null },
+                    isActive = _isActive.value
+                )
 
-            if (medicineId != null) {
-                medicineRepository.updateMedicine(medicine)
-            } else {
-                medicineRepository.insertMedicine(medicine)
+                if (medicineId != null) {
+                    medicineRepository.updateMedicine(medicine)
+                } else {
+                    medicineRepository.insertMedicine(medicine)
+                }
+                _saveComplete.send(Unit)
+            } catch (e: Exception) {
+                _error.value = "Failed to save: ${e.message}"
             }
-            _saveComplete.value = true
         }
     }
 }
@@ -137,10 +154,9 @@ fun AddEditMedicineScreen(
     val dosage by viewModel.dosage.collectAsState()
     val instructions by viewModel.instructions.collectAsState()
     val isActive by viewModel.isActive.collectAsState()
-    val saveComplete by viewModel.saveComplete.collectAsState()
 
-    LaunchedEffect(saveComplete) {
-        if (saveComplete) {
+    LaunchedEffect(Unit) {
+        viewModel.saveComplete.collect {
             onNavigateBack()
         }
     }
