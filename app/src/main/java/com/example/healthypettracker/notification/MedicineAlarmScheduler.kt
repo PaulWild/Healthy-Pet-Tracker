@@ -4,6 +4,8 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.util.Log
 import com.example.healthypettracker.data.local.entity.MedicineSchedule
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -13,6 +15,18 @@ import java.time.ZoneId
 
 class MedicineAlarmScheduler(private val context: Context) {
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+    companion object {
+        private const val TAG = "AlarmScheduler"
+    }
+
+    fun canScheduleExactAlarms(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            alarmManager.canScheduleExactAlarms()
+        } else {
+            true
+        }
+    }
 
     fun scheduleAlarm(
         schedule: MedicineSchedule,
@@ -43,14 +57,22 @@ class MedicineAlarmScheduler(private val context: Context) {
             .toInstant()
             .toEpochMilli()
 
+        Log.d(TAG, "Scheduling alarm for $medicineName at $nextAlarmTime (epoch: $triggerAtMillis)")
+
+        if (!canScheduleExactAlarms()) {
+            Log.w(TAG, "Cannot schedule exact alarms - permission not granted")
+            return
+        }
+
         try {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 triggerAtMillis,
                 pendingIntent
             )
+            Log.d(TAG, "Alarm scheduled successfully for schedule ID: ${schedule.id}")
         } catch (e: SecurityException) {
-            // SCHEDULE_EXACT_ALARM permission not granted
+            Log.e(TAG, "SecurityException scheduling alarm: ${e.message}")
         }
     }
 
@@ -85,14 +107,22 @@ class MedicineAlarmScheduler(private val context: Context) {
             .toInstant()
             .toEpochMilli()
 
+        Log.d(TAG, "Scheduling snooze alarm for $medicineName at $snoozeTime")
+
+        if (!canScheduleExactAlarms()) {
+            Log.w(TAG, "Cannot schedule snooze alarm - permission not granted")
+            return
+        }
+
         try {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 triggerAtMillis,
                 pendingIntent
             )
+            Log.d(TAG, "Snooze alarm scheduled successfully")
         } catch (e: SecurityException) {
-            // SCHEDULE_EXACT_ALARM permission not granted
+            Log.e(TAG, "SecurityException scheduling snooze alarm: ${e.message}")
         }
     }
 

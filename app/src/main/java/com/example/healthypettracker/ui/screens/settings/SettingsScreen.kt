@@ -24,16 +24,23 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.healthypettracker.di.AppContainer
+import com.example.healthypettracker.notification.PermissionHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -78,8 +85,26 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory())
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val weightUnit by viewModel.weightUnit.collectAsState()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
+
+    // Track permission states and refresh when returning from settings
+    var hasNotificationPermission by remember { mutableStateOf(PermissionHelper.hasNotificationPermission(context)) }
+    var hasExactAlarmPermission by remember { mutableStateOf(PermissionHelper.hasExactAlarmPermission(context)) }
+
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasNotificationPermission = PermissionHelper.hasNotificationPermission(context)
+                hasExactAlarmPermission = PermissionHelper.hasExactAlarmPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -167,15 +192,28 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     SettingsRow(
-                        title = "Exact Alarms",
-                        subtitle = "Required for precise medicine reminders",
+                        title = "Notifications",
+                        subtitle = if (hasNotificationPermission) "Granted" else "Required for medicine reminders",
                         onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                                context.startActivity(intent)
-                            }
+                            PermissionHelper.openNotificationSettings(context)
+                        },
+                        trailing = {
+                            PermissionStatusIndicator(isGranted = hasNotificationPermission)
                         }
                     )
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        SettingsRow(
+                            title = "Exact Alarms",
+                            subtitle = if (hasExactAlarmPermission) "Granted" else "Required for precise reminders",
+                            onClick = {
+                                PermissionHelper.openExactAlarmSettings(context)
+                            },
+                            trailing = {
+                                PermissionStatusIndicator(isGranted = hasExactAlarmPermission)
+                            }
+                        )
+                    }
                 }
             }
 
@@ -237,4 +275,13 @@ private fun SettingsRow(
         }
         trailing?.invoke()
     }
+}
+
+@Composable
+private fun PermissionStatusIndicator(isGranted: Boolean) {
+    Text(
+        text = if (isGranted) "Granted" else "Not Granted",
+        style = MaterialTheme.typography.bodySmall,
+        color = if (isGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    )
 }

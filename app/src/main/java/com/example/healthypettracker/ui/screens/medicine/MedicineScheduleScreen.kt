@@ -1,5 +1,9 @@
 package com.example.healthypettracker.ui.screens.medicine
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -53,6 +58,7 @@ import com.example.healthypettracker.di.AppContainer
 import com.example.healthypettracker.domain.repository.CatRepository
 import com.example.healthypettracker.domain.repository.MedicineRepository
 import com.example.healthypettracker.notification.MedicineAlarmScheduler
+import com.example.healthypettracker.notification.PermissionHelper
 import com.example.healthypettracker.ui.components.DayOfWeekSelector
 import com.example.healthypettracker.ui.components.getDayNames
 import kotlinx.coroutines.flow.SharingStarted
@@ -141,9 +147,47 @@ fun MedicineScheduleScreen(
         )
     )
 ) {
+    val context = LocalContext.current
     val medicine by viewModel.medicine.collectAsState()
     val schedules by viewModel.schedules.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var showExactAlarmDialog by remember { mutableStateOf(false) }
+    var showNotificationDialog by remember { mutableStateOf(false) }
+    var pendingSchedule by remember { mutableStateOf<Pair<LocalTime, Int>?>(null) }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            pendingSchedule?.let { (time, days) ->
+                viewModel.addSchedule(time, days)
+                pendingSchedule = null
+            }
+        } else {
+            showNotificationDialog = true
+        }
+    }
+
+    fun tryAddSchedule(time: LocalTime, days: Int) {
+        // Check exact alarm permission first
+        if (!PermissionHelper.hasExactAlarmPermission(context)) {
+            pendingSchedule = time to days
+            showExactAlarmDialog = true
+            return
+        }
+
+        // Check notification permission
+        if (!PermissionHelper.hasNotificationPermission(context)) {
+            pendingSchedule = time to days
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            return
+        }
+
+        // All permissions granted, add the schedule
+        viewModel.addSchedule(time, days)
+    }
 
     Scaffold(
         topBar = {
@@ -224,8 +268,79 @@ fun MedicineScheduleScreen(
         AddScheduleDialog(
             onDismiss = { showAddDialog = false },
             onConfirm = { time, days ->
-                viewModel.addSchedule(time, days)
+                tryAddSchedule(time, days)
                 showAddDialog = false
+            }
+        )
+    }
+
+    if (showExactAlarmDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showExactAlarmDialog = false
+                pendingSchedule = null
+            },
+            title = { Text("Permission Required") },
+            text = {
+                Text("To set medicine reminders, this app needs permission to schedule exact alarms. Please enable 'Alarms & reminders' for this app in Settings.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showExactAlarmDialog = false
+                        PermissionHelper.openExactAlarmSettings(context)
+                    }
+                ) {
+                    Text("Open Settings")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showExactAlarmDialog = false
+                        pendingSchedule = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showNotificationDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showNotificationDialog = false
+                pendingSchedule = null
+            },
+            title = { Text("Notifications Disabled") },
+            text = {
+                Text("Without notification permission, you won't receive medicine reminders. You can enable notifications in Settings.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showNotificationDialog = false
+                        PermissionHelper.openNotificationSettings(context)
+                        pendingSchedule = null
+                    }
+                ) {
+                    Text("Open Settings")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showNotificationDialog = false
+                        // Still add the schedule even without notification permission
+                        pendingSchedule?.let { (time, days) ->
+                            viewModel.addSchedule(time, days)
+                        }
+                        pendingSchedule = null
+                    }
+                ) {
+                    Text("Add Anyway")
+                }
             }
         )
     }
