@@ -7,7 +7,7 @@ import com.example.healthypettracker.data.local.entity.DiaryCategory
 import com.example.healthypettracker.data.local.entity.DiaryNote
 import com.example.healthypettracker.domain.repository.DiaryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import jakarta.inject.Inject
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

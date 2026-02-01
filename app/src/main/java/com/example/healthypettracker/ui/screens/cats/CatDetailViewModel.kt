@@ -12,7 +12,7 @@ import com.example.healthypettracker.domain.repository.DiaryRepository
 import com.example.healthypettracker.domain.repository.MedicineRepository
 import com.example.healthypettracker.domain.repository.WeightRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import jakarta.inject.Inject
+import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn

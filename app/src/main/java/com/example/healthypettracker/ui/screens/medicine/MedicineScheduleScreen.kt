@@ -46,10 +46,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.healthypettracker.data.local.entity.Medicine
 import com.example.healthypettracker.data.local.entity.MedicineSchedule
 import com.example.healthypettracker.domain.repository.CatRepository
@@ -58,19 +58,24 @@ import com.example.healthypettracker.notification.MedicineAlarmScheduler
 import com.example.healthypettracker.notification.PermissionHelper
 import com.example.healthypettracker.ui.components.DayOfWeekSelector
 import com.example.healthypettracker.ui.components.getDayNames
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import javax.inject.Inject
 
-class MedicineScheduleViewModel(
+@HiltViewModel
+class MedicineScheduleViewModel @Inject constructor(
     private val medicineRepository: MedicineRepository,
     private val catRepository: CatRepository,
     private val alarmScheduler: MedicineAlarmScheduler,
-    private val medicineId: Long
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val medicineId: Long = savedStateHandle["medicineId"] ?: error("medicineId required")
 
     val medicine: StateFlow<Medicine?> = medicineRepository.getMedicineByIdFlow(medicineId)
         .stateIn(
@@ -116,40 +121,13 @@ class MedicineScheduleViewModel(
             medicineRepository.deleteSchedule(schedule)
         }
     }
-
-    @Suppress("UNCHECKED_CAST")
-    class Factory(
-        private val medicineRepository: MedicineRepository,
-        private val catRepository: CatRepository,
-        private val alarmScheduler: MedicineAlarmScheduler,
-        private val medicineId: Long
-    ) : ViewModelProvider.Factory {
-
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return MedicineScheduleViewModel(
-                medicineRepository,
-                catRepository,
-                alarmScheduler,
-                medicineId
-            ) as T
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MedicineScheduleScreen(
-    container: AppContainer,
-    medicineId: Long,
     onNavigateBack: () -> Unit,
-    viewModel: MedicineScheduleViewModel = viewModel(
-        factory = MedicineScheduleViewModel.Factory(
-            container.medicineRepository,
-            container.catRepository,
-            container.medicineAlarmScheduler,
-            medicineId
-        )
-    )
+    viewModel: MedicineScheduleViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val medicine by viewModel.medicine.collectAsState()

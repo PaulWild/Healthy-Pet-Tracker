@@ -27,22 +27,27 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.healthypettracker.data.local.entity.WeightEntry
 import com.example.healthypettracker.domain.repository.WeightRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
+import javax.inject.Inject
 
-class AddWeightViewModel(
+@HiltViewModel
+class AddWeightViewModel @Inject constructor(
     private val weightRepository: WeightRepository,
-    private val catId: Long
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val catId: Long = savedStateHandle["catId"] ?: error("catId required")
 
     private val _weightKg = MutableStateFlow("")
     val weightKg: StateFlow<String> = _weightKg.asStateFlow()
@@ -81,27 +86,13 @@ class AddWeightViewModel(
             _saveComplete.value = true
         }
     }
-
-    class Factory(
-        private val weightRepository: WeightRepository,
-        private val catId: Long
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return AddWeightViewModel(weightRepository, catId) as T
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddWeightScreen(
-    container: AppContainer,
-    catId: Long,
     onNavigateBack: () -> Unit,
-    viewModel: AddWeightViewModel = viewModel(
-        factory = AddWeightViewModel.Factory(container.weightRepository, catId)
-    )
+    viewModel: AddWeightViewModel = hiltViewModel()
 ) {
     val weightKg by viewModel.weightKg.collectAsState()
     val notes by viewModel.notes.collectAsState()

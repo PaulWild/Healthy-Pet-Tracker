@@ -33,7 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.healthypettracker.data.local.entity.FoodEntry
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -41,13 +41,9 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoodLogScreen(
-    container: AppContainer,
-    catId: Long,
     onNavigateBack: () -> Unit,
     onNavigateToAddFood: () -> Unit,
-    viewModel: FoodLogViewModel = viewModel(
-        factory = FoodLogViewModel.Factory(container.foodRepository, catId)
-    )
+    viewModel: FoodLogViewModel = hiltViewModel()
 ) {
     val entries by viewModel.foodEntries.collectAsState()
 

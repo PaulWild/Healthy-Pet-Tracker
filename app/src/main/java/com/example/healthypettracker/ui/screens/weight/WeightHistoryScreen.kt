@@ -33,23 +33,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.healthypettracker.data.local.entity.WeightEntry
 import com.example.healthypettracker.domain.repository.WeightRepository
 import com.example.healthypettracker.ui.components.WeightChart
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
+import javax.inject.Inject
 
-class WeightHistoryViewModel(
+@HiltViewModel
+class WeightHistoryViewModel @Inject constructor(
     private val weightRepository: WeightRepository,
-    private val catId: Long
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val catId: Long = savedStateHandle["catId"] ?: error("catId required")
 
     val weightEntries: StateFlow<List<WeightEntry>> = weightRepository.getWeightEntriesForCat(catId)
         .stateIn(
@@ -63,28 +68,14 @@ class WeightHistoryViewModel(
             weightRepository.deleteWeightEntry(entry)
         }
     }
-
-    class Factory(
-        private val weightRepository: WeightRepository,
-        private val catId: Long
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return WeightHistoryViewModel(weightRepository, catId) as T
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeightHistoryScreen(
-    container: AppContainer,
-    catId: Long,
     onNavigateBack: () -> Unit,
     onNavigateToAddWeight: () -> Unit,
-    viewModel: WeightHistoryViewModel = viewModel(
-        factory = WeightHistoryViewModel.Factory(container.weightRepository, catId)
-    )
+    viewModel: WeightHistoryViewModel = hiltViewModel()
 ) {
     val entries by viewModel.weightEntries.collectAsState()
 

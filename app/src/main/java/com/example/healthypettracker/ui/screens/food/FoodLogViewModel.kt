@@ -1,19 +1,24 @@
 package com.example.healthypettracker.ui.screens.food
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.healthypettracker.data.local.entity.FoodEntry
 import com.example.healthypettracker.domain.repository.FoodRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class FoodLogViewModel(
+@HiltViewModel
+class FoodLogViewModel @Inject constructor(
     private val foodRepository: FoodRepository,
-    private val catId: Long
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val catId: Long = savedStateHandle["catId"] ?: error("catId required")
 
     val foodEntries: StateFlow<List<FoodEntry>> = foodRepository.getFoodEntriesForCat(catId)
         .stateIn(
@@ -25,16 +30,6 @@ class FoodLogViewModel(
     fun deleteEntry(entry: FoodEntry) {
         viewModelScope.launch {
             foodRepository.deleteFoodEntry(entry)
-        }
-    }
-
-    class Factory(
-        private val foodRepository: FoodRepository,
-        private val catId: Long
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return FoodLogViewModel(foodRepository, catId) as T
         }
     }
 }

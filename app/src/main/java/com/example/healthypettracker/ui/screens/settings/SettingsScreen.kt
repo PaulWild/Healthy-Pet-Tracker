@@ -35,21 +35,23 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.healthypettracker.notification.PermissionHelper
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 enum class WeightUnit(val displayName: String) {
     METRIC("Metric (kg, g)"),
     IMPERIAL("Imperial (lb, oz)")
 }
 
-class SettingsViewModel : ViewModel() {
+@HiltViewModel
+class SettingsViewModel @Inject constructor() : ViewModel() {
     private val _weightUnit = MutableStateFlow(WeightUnit.METRIC)
     val weightUnit: StateFlow<WeightUnit> = _weightUnit.asStateFlow()
 
@@ -67,20 +69,12 @@ class SettingsViewModel : ViewModel() {
             _notificationsEnabled.value = enabled
         }
     }
-
-    class Factory : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return SettingsViewModel() as T
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    container: AppContainer,
-    viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory())
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current

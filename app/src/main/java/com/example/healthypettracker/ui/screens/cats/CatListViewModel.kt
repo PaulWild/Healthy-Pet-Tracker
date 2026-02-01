@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.healthypettracker.data.local.entity.Cat
 import com.example.healthypettracker.domain.repository.CatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import jakarta.inject.Inject
+import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn

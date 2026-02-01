@@ -13,7 +13,7 @@ import com.example.healthypettracker.domain.repository.MedicineRepository
 import com.example.healthypettracker.domain.repository.WeightRepository
 import com.example.healthypettracker.ui.components.TimelineEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
-import jakarta.inject.Inject
+import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

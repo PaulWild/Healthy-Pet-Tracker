@@ -28,22 +28,27 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.healthypettracker.data.local.entity.Medicine
 import com.example.healthypettracker.domain.repository.MedicineRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class AddEditMedicineViewModel(
+@HiltViewModel
+class AddEditMedicineViewModel @Inject constructor(
     private val medicineRepository: MedicineRepository,
-    private val catId: Long?,
-    private val medicineId: Long?
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val catId: Long? = savedStateHandle["catId"]
+    private val medicineId: Long? = savedStateHandle["medicineId"]
 
     private val _name = MutableStateFlow("")
     val name: StateFlow<String> = _name.asStateFlow()
@@ -120,29 +125,13 @@ class AddEditMedicineViewModel(
             _saveComplete.value = true
         }
     }
-
-    class Factory(
-        private val medicineRepository: MedicineRepository,
-        private val catId: Long?,
-        private val medicineId: Long?
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return AddEditMedicineViewModel(medicineRepository, catId, medicineId) as T
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditMedicineScreen(
-    container: AppContainer,
-    catId: Long?,
-    medicineId: Long?,
     onNavigateBack: () -> Unit,
-    viewModel: AddEditMedicineViewModel = viewModel(
-        factory = AddEditMedicineViewModel.Factory(container.medicineRepository, catId, medicineId)
-    )
+    viewModel: AddEditMedicineViewModel = hiltViewModel()
 ) {
     val name by viewModel.name.collectAsState()
     val dosage by viewModel.dosage.collectAsState()

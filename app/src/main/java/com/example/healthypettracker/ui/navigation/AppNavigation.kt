@@ -355,11 +355,8 @@ fun AppNavigation() {
             composable(
                 route = Screen.AddMedicine.route,
                 arguments = listOf(navArgument("catId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
+            ) {
                 AddEditMedicineScreen(
-                    catId = catId,
-                    medicineId = null,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -367,12 +364,8 @@ fun AppNavigation() {
             composable(
                 route = Screen.EditMedicine.route,
                 arguments = listOf(navArgument("medicineId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val medicineId =
-                    backStackEntry.arguments?.getLong("medicineId") ?: return@composable
+            ) {
                 AddEditMedicineScreen(
-                    catId = null,
-                    medicineId = medicineId,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -380,11 +373,8 @@ fun AppNavigation() {
             composable(
                 route = Screen.MedicineSchedule.route,
                 arguments = listOf(navArgument("medicineId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val medicineId =
-                    backStackEntry.arguments?.getLong("medicineId") ?: return@composable
+            ) {
                 MedicineScheduleScreen(
-                    medicineId = medicineId,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -392,10 +382,8 @@ fun AppNavigation() {
             composable(
                 route = Screen.AddWeight.route,
                 arguments = listOf(navArgument("catId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
+            ) {
                 AddWeightScreen(
-                    catId = catId,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -406,7 +394,6 @@ fun AppNavigation() {
             ) { backStackEntry ->
                 val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
                 WeightHistoryScreen(
-                    catId = catId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToAddWeight = {
                         navController.navigate(
@@ -421,10 +408,8 @@ fun AppNavigation() {
             composable(
                 route = Screen.AddFood.route,
                 arguments = listOf(navArgument("catId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
+            ) {
                 AddFoodScreen(
-                    catId = catId,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -435,7 +420,6 @@ fun AppNavigation() {
             ) { backStackEntry ->
                 val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
                 FoodLogScreen(
-                    catId = catId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToAddFood = { navController.navigate(Screen.AddFood.createRoute(catId)) }
                 )
@@ -455,11 +439,8 @@ fun AppNavigation() {
             composable(
                 route = Screen.AddDiaryNote.route,
                 arguments = listOf(navArgument("catId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
+            ) {
                 AddDiaryNoteScreen(
-                    catId = catId,
-                    noteId = null,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -467,11 +448,8 @@ fun AppNavigation() {
             composable(
                 route = Screen.EditDiaryNote.route,
                 arguments = listOf(navArgument("noteId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val noteId = backStackEntry.arguments?.getLong("noteId") ?: return@composable
+            ) {
                 AddDiaryNoteScreen(
-                    catId = null,
-                    noteId = noteId,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
