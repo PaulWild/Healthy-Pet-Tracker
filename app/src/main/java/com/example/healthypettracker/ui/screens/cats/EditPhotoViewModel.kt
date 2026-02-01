@@ -8,22 +8,26 @@ import com.example.healthypettracker.domain.repository.CatRepository
 import kotlinx.coroutines.launch
 
 class EditPhotoViewModel(
+    val catId: Long,
     private val catRepository: CatRepository
 ) : ViewModel() {
 
-    fun savePhoto(catId: Long, photoUri: Uri) {
+    fun savePhoto(newPhotoUri: Uri) {
         viewModelScope.launch {
             val cat = catRepository.getCatById(catId)
             if (cat != null) {
-                catRepository.updateCat(cat.copy(photoUri = photoUri.toString()))
+                catRepository.updateCat(cat.copy(photoUri = newPhotoUri.toString()))
             }
         }
     }
 
-    class Factory(private val catRepository: CatRepository) : ViewModelProvider.Factory {
+    class Factory(
+        private val catId: Long,
+        private val catRepository: CatRepository
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return EditPhotoViewModel(catRepository) as T
+            return EditPhotoViewModel(catId, catRepository) as T
         }
     }
 }

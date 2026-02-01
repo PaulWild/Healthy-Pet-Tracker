@@ -44,13 +44,13 @@ fun saveBitmapToInternalStorage(context: Context, bitmap: Bitmap): Uri {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditPhotoScreen(
-    originalUri: Uri,
     catId: Long,
+    originalUri: Uri,
     container: AppContainer,
     onCancel: () -> Unit,
     onSave: () -> Unit,
     viewModel: EditPhotoViewModel = viewModel(
-        factory = EditPhotoViewModel.Factory(container.catRepository)
+        factory = EditPhotoViewModel.Factory(catId, container.catRepository)
     )
 ) {
     val cropViewRef = remember { mutableStateOf<CropImageView?>(null) }
@@ -88,7 +88,7 @@ fun EditPhotoScreen(
                         context = composeContext,
                         bitmap = cropped
                     )
-                    viewModel.savePhoto(catId, uri)
+                    viewModel.savePhoto(uri)
                     onSave()
                 }
             }) {

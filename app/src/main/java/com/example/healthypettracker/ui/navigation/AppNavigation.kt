@@ -196,8 +196,8 @@ fun AppNavigation(container: AppContainer) {
                 val originalUri = Uri.decode(encodedUri).toUri()
 
                 EditPhotoScreen(
-                    originalUri = originalUri,
                     catId = catId,
+                    originalUri = originalUri,
                     container = container,
                     onCancel = { navController.popBackStack() },
                     onSave = { navController.popBackStack() }
