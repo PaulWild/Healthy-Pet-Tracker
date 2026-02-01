@@ -2,6 +2,7 @@ package com.example.healthypettracker.ui.screens.cats
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -55,21 +56,34 @@ fun CatListScreen(
 ) {
     val cats by viewModel.cats.collectAsState()
     var catToDelete by remember { mutableStateOf<Cat?>(null) }
-
-    var selectedCatId by remember { mutableStateOf<Long?>(null) }
-
+    var pendingCatId by remember { mutableStateOf<Long?>(null) }
     val context = LocalContext.current
+
+
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        if (uri != null && selectedCatId != null) {
 
-            context.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-            onNavigateToEditPhoto(selectedCatId!!, uri)
+        val catId = pendingCatId
+        if (uri != null && catId != null) {
+            Log.d("Picker", "Attempting to navigate with catId=$catId")
+
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: SecurityException) {
+                // Some URIs (e.g., from preview/recent) don't support persistable permissions
+            }
+
+
+
+            onNavigateToEditPhoto(catId, uri)
+
+
         }
+
     }
 
     Scaffold(
@@ -106,7 +120,7 @@ fun CatListScreen(
                         cat = cat,
                         onClick = { onNavigateToCatDetail(cat.id) },
                         onSelectCatImage = {
-                            selectedCatId = cat.id
+                            pendingCatId = cat.id
                             photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         },
                         onDeleteClick = { catToDelete = cat }

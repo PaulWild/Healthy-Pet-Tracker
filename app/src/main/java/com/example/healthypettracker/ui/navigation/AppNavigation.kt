@@ -1,7 +1,12 @@
 package com.example.healthypettracker.ui.navigation
 
 import android.net.Uri
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
@@ -9,16 +14,25 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -43,14 +57,41 @@ import com.example.healthypettracker.ui.screens.settings.SettingsScreen
 import com.example.healthypettracker.ui.screens.weight.AddWeightScreen
 import com.example.healthypettracker.ui.screens.weight.WeightHistoryScreen
 
+
+sealed interface BottomBarConfig {
+    data object None : BottomBarConfig
+    data object Default : BottomBarConfig
+
+    data class SaveCancel(
+        val onSave: () -> Unit = {},
+        val onCancel: () -> Unit = {},
+        val saveEnabled: Boolean = true,
+        val saveText: String = "Save",
+        val cancelText: String = "Cancel"
+    ) : BottomBarConfig
+}
+
+class BottomBarState {
+    var config: BottomBarConfig by mutableStateOf(BottomBarConfig.Default)
+
+    fun clear() {
+        config = BottomBarConfig.Default
+    }
+}
+
+data class EditPhotoActions(val onCancel: () -> Unit, val onSave: () -> Unit)
+
 sealed class Screen(val route: String) {
+
+
     data object CatList : Screen("cats")
     data object AddCat : Screen("cats/add")
     data object EditCat : Screen("cats/{catId}/edit") {
         fun createRoute(catId: Long) = "cats/$catId/edit"
     }
 
-    data object EditCatPhoto : Screen("cats/{catId}/edit/photo?uri={uri}") {
+    data object EditCatPhoto :
+        Screen("cats/{catId}/edit/photo?uri={uri}") {
         fun createRoute(catId: Long, uri: String) =
             "cats/$catId/edit/photo?uri=${Uri.encode(uri)}"
     }
@@ -128,18 +169,81 @@ sealed class BottomNavItem(
 }
 
 @Composable
+fun AppBottomBar(
+    config: BottomBarConfig,
+    navController: NavHostController,
+    modifier: Modifier = Modifier
+) {
+    when (config) {
+        is BottomBarConfig.None -> { /* No bottom bar */
+        }
+
+        is BottomBarConfig.SaveCancel -> SaveCancelBottomBar(config, navController, modifier)
+        is BottomBarConfig.Default -> {
+            val bottomNavItems = listOf(
+                BottomNavItem.Cats,
+                BottomNavItem.Diary,
+                BottomNavItem.Settings
+            )
+            BottomNavigationBar(navController, bottomNavItems)
+        }
+
+    }
+}
+
+
+@Composable
+fun SaveCancelBottomBar(
+    config: BottomBarConfig.SaveCancel,
+    navController: NavController,
+    modifier: Modifier = Modifier
+) {
+    BottomAppBar(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            TextButton(
+                onClick = {
+                    config.onCancel()
+                    navController.popBackStack()
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(config.cancelText)
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Button(
+                onClick = {
+                    config.onSave()
+                    navController.popBackStack()
+                },
+                enabled = config.saveEnabled,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(config.saveText)
+            }
+        }
+    }
+}
+
+@Composable
 fun AppNavigation(container: AppContainer) {
     val navController = rememberNavController()
-    val bottomNavItems = listOf(
-        BottomNavItem.Cats,
-        BottomNavItem.Diary,
-        BottomNavItem.Settings
-    )
+    val bottomBarState = remember { BottomBarState() }
 
     Scaffold(
         bottomBar = {
-            BottomNavigationBar(navController, bottomNavItems)
+            AppBottomBar(config = bottomBarState.config, navController)
         }
+
     ) { innerPadding ->
         NavHost(
             navController = navController,
@@ -199,8 +303,7 @@ fun AppNavigation(container: AppContainer) {
                     catId = catId,
                     originalUri = originalUri,
                     container = container,
-                    onCancel = { navController.popBackStack() },
-                    onSave = { navController.popBackStack() }
+                    bottomBarState = bottomBarState
                 )
             }
 
