@@ -1,5 +1,6 @@
 package com.example.healthypettracker.ui.screens.cats
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,93 +43,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.healthypettracker.data.local.entity.Cat
 import com.example.healthypettracker.data.local.entity.DiaryNote
 import com.example.healthypettracker.data.local.entity.Medicine
 import com.example.healthypettracker.data.local.entity.WeightEntry
-import com.example.healthypettracker.di.AppContainer
-import com.example.healthypettracker.domain.repository.CatRepository
-import com.example.healthypettracker.domain.repository.DiaryRepository
-import com.example.healthypettracker.domain.repository.MedicineRepository
-import com.example.healthypettracker.domain.repository.WeightRepository
 import com.example.healthypettracker.ui.components.CatAvatar
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
-
-class CatDetailViewModel(
-    private val catRepository: CatRepository,
-    private val medicineRepository: MedicineRepository,
-    private val weightRepository: WeightRepository,
-    private val diaryRepository: DiaryRepository,
-    private val catId: Long
-) : ViewModel() {
-
-    val cat: StateFlow<Cat?> = catRepository.getCatByIdFlow(catId)
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = null
-        )
-
-    val medicines: StateFlow<List<Medicine>> = medicineRepository.getMedicinesForCat(catId)
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
-    val latestWeight: StateFlow<WeightEntry?> = weightRepository.getLatestWeightEntry(catId)
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = null
-        )
-
-    val recentDiaryNotes: StateFlow<List<DiaryNote>> = diaryRepository.getDiaryNotesForCat(catId)
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
-    fun deleteMedicine(medicine: Medicine) {
-        viewModelScope.launch {
-            medicineRepository.deleteMedicine(medicine)
-        }
-    }
-
-    class Factory(
-        private val catRepository: CatRepository,
-        private val medicineRepository: MedicineRepository,
-        private val weightRepository: WeightRepository,
-        private val diaryRepository: DiaryRepository,
-        private val catId: Long
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return CatDetailViewModel(
-                catRepository,
-                medicineRepository,
-                weightRepository,
-                diaryRepository,
-                catId
-            ) as T
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CatDetailScreen(
-    container: AppContainer,
-    catId: Long,
     onNavigateBack: () -> Unit,
     onNavigateToEditCat: () -> Unit,
     onNavigateToAddMedicine: () -> Unit,
@@ -139,15 +64,10 @@ fun CatDetailScreen(
     onNavigateToAddFood: () -> Unit,
     onNavigateToFoodLog: () -> Unit,
     onNavigateToAddDiaryNote: () -> Unit,
-    viewModel: CatDetailViewModel = viewModel(
-        factory = CatDetailViewModel.Factory(
-            container.catRepository,
-            container.medicineRepository,
-            container.weightRepository,
-            container.diaryRepository,
-            catId
-        )
-    )
+    onNavigateToEditPhoto: (Long, Uri) -> Unit,
+    viewModel: CatDetailViewModel = hiltViewModel()
+
+
 ) {
     val cat by viewModel.cat.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -197,7 +117,8 @@ fun CatDetailScreen(
                     onNavigateToAddWeight = onNavigateToAddWeight,
                     onNavigateToWeightHistory = onNavigateToWeightHistory,
                     onNavigateToAddFood = onNavigateToAddFood,
-                    onNavigateToFoodLog = onNavigateToFoodLog
+                    onNavigateToFoodLog = onNavigateToFoodLog,
+                    onNavigateToEditPhoto = onNavigateToEditPhoto
                 )
 
                 1 -> MedicineTab(
@@ -222,10 +143,12 @@ private fun OverviewTab(
     onNavigateToAddWeight: () -> Unit,
     onNavigateToWeightHistory: () -> Unit,
     onNavigateToAddFood: () -> Unit,
-    onNavigateToFoodLog: () -> Unit
+    onNavigateToFoodLog: () -> Unit,
+    onNavigateToEditPhoto: (Long, Uri) -> Unit
 ) {
     val cat by viewModel.cat.collectAsState()
     val latestWeight by viewModel.latestWeight.collectAsState()
+    val picker = rememberPhotoPickerController { catId, uri -> onNavigateToEditPhoto(catId, uri) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -233,7 +156,7 @@ private fun OverviewTab(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            cat?.let { CatInfoCard(cat = it, onClick = {}) }
+            cat?.let { CatInfoCard(cat = it, onClick = { picker.pickFor(it.id) }) }
         }
 
         item {

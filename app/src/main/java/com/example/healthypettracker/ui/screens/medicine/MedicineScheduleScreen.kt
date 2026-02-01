@@ -52,7 +52,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.healthypettracker.data.local.entity.Medicine
 import com.example.healthypettracker.data.local.entity.MedicineSchedule
-import com.example.healthypettracker.di.AppContainer
 import com.example.healthypettracker.domain.repository.CatRepository
 import com.example.healthypettracker.domain.repository.MedicineRepository
 import com.example.healthypettracker.notification.MedicineAlarmScheduler

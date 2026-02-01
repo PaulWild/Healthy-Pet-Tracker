@@ -35,85 +35,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.healthypettracker.data.local.entity.FoodEntry
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.healthypettracker.data.local.entity.FoodType
-import com.example.healthypettracker.di.AppContainer
-import com.example.healthypettracker.domain.repository.FoodRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import java.time.LocalDateTime
-
-class AddFoodViewModel(
-    private val foodRepository: FoodRepository,
-    private val catId: Long
-) : ViewModel() {
-
-    private val _foodType = MutableStateFlow(FoodType.WET)
-    val foodType: StateFlow<FoodType> = _foodType.asStateFlow()
-
-    private val _brandName = MutableStateFlow("")
-    val brandName: StateFlow<String> = _brandName.asStateFlow()
-
-    private val _amountGrams = MutableStateFlow("")
-    val amountGrams: StateFlow<String> = _amountGrams.asStateFlow()
-
-    private val _saveComplete = MutableStateFlow(false)
-    val saveComplete: StateFlow<Boolean> = _saveComplete.asStateFlow()
-
-    fun updateFoodType(type: FoodType) {
-        _foodType.value = type
-    }
-
-    fun updateBrandName(brand: String) {
-        _brandName.value = brand
-    }
-
-    fun updateAmountGrams(amount: String) {
-        if (amount.isEmpty() || amount.matches(Regex("^\\d*$"))) {
-            _amountGrams.value = amount
-        }
-    }
-
-    fun save() {
-        viewModelScope.launch {
-            val entry = FoodEntry(
-                catId = catId,
-                foodType = _foodType.value,
-                brandName = _brandName.value.trim().ifBlank { null },
-                amountGrams = _amountGrams.value.toIntOrNull(),
-                fedAt = LocalDateTime.now()
-            )
-            foodRepository.insertFoodEntry(entry)
-            _saveComplete.value = true
-        }
-    }
-
-    class Factory(
-        private val foodRepository: FoodRepository,
-        private val catId: Long
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return AddFoodViewModel(foodRepository, catId) as T
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddFoodScreen(
-    container: AppContainer,
-    catId: Long,
     onNavigateBack: () -> Unit,
-    viewModel: AddFoodViewModel = viewModel(
-        factory = AddFoodViewModel.Factory(container.foodRepository, catId)
-    )
+    viewModel: AddFoodViewModel = hiltViewModel()
 ) {
     val foodType by viewModel.foodType.collectAsState()
     val brandName by viewModel.brandName.collectAsState()

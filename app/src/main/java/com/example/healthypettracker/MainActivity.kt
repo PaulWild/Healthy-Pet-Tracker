@@ -19,14 +19,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.example.healthypettracker.ui.navigation.AppNavigation
 import com.example.healthypettracker.ui.theme.HealthyPetTrackerTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val app = application as HealthyPetTrackerApp
+        application as HealthyPetTrackerApp
 
         setContent {
             var showAlarmPermissionDialog by remember { mutableStateOf(false) }
@@ -41,7 +43,7 @@ class MainActivity : ComponentActivity() {
             }
 
             HealthyPetTrackerTheme {
-                AppNavigation(container = app.container)
+                AppNavigation()
 
                 if (showAlarmPermissionDialog) {
                     AlarmPermissionDialog(

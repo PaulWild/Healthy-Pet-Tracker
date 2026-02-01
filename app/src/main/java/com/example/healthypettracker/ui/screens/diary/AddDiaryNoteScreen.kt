@@ -33,118 +33,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.healthypettracker.data.local.entity.DiaryCategory
-import com.example.healthypettracker.data.local.entity.DiaryNote
-import com.example.healthypettracker.di.AppContainer
-import com.example.healthypettracker.domain.repository.DiaryRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import java.time.LocalDateTime
-
-class AddDiaryNoteViewModel(
-    private val diaryRepository: DiaryRepository,
-    private val catId: Long?,
-    private val noteId: Long?
-) : ViewModel() {
-
-    private val _title = MutableStateFlow("")
-    val title: StateFlow<String> = _title.asStateFlow()
-
-    private val _content = MutableStateFlow("")
-    val content: StateFlow<String> = _content.asStateFlow()
-
-    private val _category = MutableStateFlow(DiaryCategory.GENERAL)
-    val category: StateFlow<DiaryCategory> = _category.asStateFlow()
-
-    private val _saveComplete = MutableStateFlow(false)
-    val saveComplete: StateFlow<Boolean> = _saveComplete.asStateFlow()
-
-    private var loadedCatId: Long? = catId
-    private var originalCreatedAt: LocalDateTime? = null
-
-    val isEditMode = noteId != null
-
-    init {
-        if (noteId != null) {
-            loadNote(noteId)
-        }
-    }
-
-    private fun loadNote(noteId: Long) {
-        viewModelScope.launch {
-            diaryRepository.getDiaryNoteById(noteId)?.let { note ->
-                _title.value = note.title
-                _content.value = note.content ?: ""
-                _category.value = note.category
-                loadedCatId = note.catId
-                originalCreatedAt = note.createdAt
-            }
-        }
-    }
-
-    fun updateTitle(title: String) {
-        _title.value = title
-    }
-
-    fun updateContent(content: String) {
-        _content.value = content
-    }
-
-    fun updateCategory(category: DiaryCategory) {
-        _category.value = category
-    }
-
-    fun save() {
-        val currentCatId = loadedCatId ?: return
-        if (_title.value.isBlank()) return
-
-        viewModelScope.launch {
-            val note = DiaryNote(
-                id = noteId ?: 0,
-                catId = currentCatId,
-                title = _title.value.trim(),
-                content = _content.value.trim().ifBlank { null },
-                category = _category.value,
-                createdAt = originalCreatedAt ?: LocalDateTime.now()
-            )
-
-            if (noteId != null) {
-                diaryRepository.updateDiaryNote(note)
-            } else {
-                diaryRepository.insertDiaryNote(note)
-            }
-            _saveComplete.value = true
-        }
-    }
-
-    class Factory(
-        private val diaryRepository: DiaryRepository,
-        private val catId: Long?,
-        private val noteId: Long?
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return AddDiaryNoteViewModel(diaryRepository, catId, noteId) as T
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddDiaryNoteScreen(
-    container: AppContainer,
-    catId: Long?,
-    noteId: Long?,
     onNavigateBack: () -> Unit,
-    viewModel: AddDiaryNoteViewModel = viewModel(
-        factory = AddDiaryNoteViewModel.Factory(container.diaryRepository, catId, noteId)
-    )
+    viewModel: AddDiaryNoteViewModel = hiltViewModel()
 ) {
     val title by viewModel.title.collectAsState()
     val content by viewModel.content.collectAsState()
@@ -223,7 +119,8 @@ fun AddDiaryNoteScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = cat.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() },
+                            text = cat.name.lowercase().replace('_', ' ')
+                                .replaceFirstChar { it.uppercase() },
                             style = MaterialTheme.typography.bodyLarge
                         )
                     }

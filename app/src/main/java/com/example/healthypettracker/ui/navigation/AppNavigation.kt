@@ -42,7 +42,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.healthypettracker.di.AppContainer
 import com.example.healthypettracker.ui.screens.cats.AddEditCatScreen
 import com.example.healthypettracker.ui.screens.cats.CatDetailScreen
 import com.example.healthypettracker.ui.screens.cats.CatListScreen
@@ -79,7 +78,6 @@ class BottomBarState {
     }
 }
 
-data class EditPhotoActions(val onCancel: () -> Unit, val onSave: () -> Unit)
 
 sealed class Screen(val route: String) {
 
@@ -235,7 +233,7 @@ fun SaveCancelBottomBar(
 }
 
 @Composable
-fun AppNavigation(container: AppContainer) {
+fun AppNavigation() {
     val navController = rememberNavController()
     val bottomBarState = remember { BottomBarState() }
 
@@ -252,7 +250,6 @@ fun AppNavigation(container: AppContainer) {
         ) {
             composable(Screen.CatList.route) {
                 CatListScreen(
-                    container = container,
                     onNavigateToAddCat = { navController.navigate(Screen.AddCat.route) },
                     onNavigateToCatDetail = { catId ->
                         navController.navigate(Screen.CatDetail.createRoute(catId))
@@ -270,8 +267,6 @@ fun AppNavigation(container: AppContainer) {
 
             composable(Screen.AddCat.route) {
                 AddEditCatScreen(
-                    container = container,
-                    catId = null,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -279,11 +274,8 @@ fun AppNavigation(container: AppContainer) {
             composable(
                 route = Screen.EditCat.route,
                 arguments = listOf(navArgument("catId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
+            ) {
                 AddEditCatScreen(
-                    container = container,
-                    catId = catId,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
@@ -295,14 +287,12 @@ fun AppNavigation(container: AppContainer) {
                     navArgument("uri") { type = NavType.StringType }
                 )
             ) { backStackEntry ->
-                val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
+                backStackEntry.arguments?.getLong("catId") ?: return@composable
                 val encodedUri = backStackEntry.arguments?.getString("uri") ?: return@composable
                 val originalUri = Uri.decode(encodedUri).toUri()
 
                 EditPhotoScreen(
-                    catId = catId,
                     originalUri = originalUri,
-                    container = container,
                     bottomBarState = bottomBarState
                 )
             }
@@ -313,8 +303,6 @@ fun AppNavigation(container: AppContainer) {
             ) { backStackEntry ->
                 val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
                 CatDetailScreen(
-                    container = container,
-                    catId = catId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToEditCat = { navController.navigate(Screen.EditCat.createRoute(catId)) },
                     onNavigateToAddMedicine = {
@@ -352,6 +340,14 @@ fun AppNavigation(container: AppContainer) {
                                 catId
                             )
                         )
+                    },
+                    onNavigateToEditPhoto = { catId, uri ->
+                        navController.navigate(
+                            Screen.EditCatPhoto.createRoute(
+                                catId,
+                                uri.toString()
+                            )
+                        )
                     }
                 )
             }
@@ -362,7 +358,6 @@ fun AppNavigation(container: AppContainer) {
             ) { backStackEntry ->
                 val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
                 AddEditMedicineScreen(
-                    container = container,
                     catId = catId,
                     medicineId = null,
                     onNavigateBack = { navController.popBackStack() }
@@ -376,7 +371,6 @@ fun AppNavigation(container: AppContainer) {
                 val medicineId =
                     backStackEntry.arguments?.getLong("medicineId") ?: return@composable
                 AddEditMedicineScreen(
-                    container = container,
                     catId = null,
                     medicineId = medicineId,
                     onNavigateBack = { navController.popBackStack() }
@@ -390,7 +384,6 @@ fun AppNavigation(container: AppContainer) {
                 val medicineId =
                     backStackEntry.arguments?.getLong("medicineId") ?: return@composable
                 MedicineScheduleScreen(
-                    container = container,
                     medicineId = medicineId,
                     onNavigateBack = { navController.popBackStack() }
                 )
@@ -402,7 +395,6 @@ fun AppNavigation(container: AppContainer) {
             ) { backStackEntry ->
                 val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
                 AddWeightScreen(
-                    container = container,
                     catId = catId,
                     onNavigateBack = { navController.popBackStack() }
                 )
@@ -414,7 +406,6 @@ fun AppNavigation(container: AppContainer) {
             ) { backStackEntry ->
                 val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
                 WeightHistoryScreen(
-                    container = container,
                     catId = catId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToAddWeight = {
@@ -433,7 +424,6 @@ fun AppNavigation(container: AppContainer) {
             ) { backStackEntry ->
                 val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
                 AddFoodScreen(
-                    container = container,
                     catId = catId,
                     onNavigateBack = { navController.popBackStack() }
                 )
@@ -445,7 +435,6 @@ fun AppNavigation(container: AppContainer) {
             ) { backStackEntry ->
                 val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
                 FoodLogScreen(
-                    container = container,
                     catId = catId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToAddFood = { navController.navigate(Screen.AddFood.createRoute(catId)) }
@@ -454,7 +443,6 @@ fun AppNavigation(container: AppContainer) {
 
             composable(Screen.Diary.route) {
                 DiaryScreen(
-                    container = container,
                     onNavigateToAddDiaryNote = { catId ->
                         navController.navigate(Screen.AddDiaryNote.createRoute(catId))
                     },
@@ -470,7 +458,6 @@ fun AppNavigation(container: AppContainer) {
             ) { backStackEntry ->
                 val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
                 AddDiaryNoteScreen(
-                    container = container,
                     catId = catId,
                     noteId = null,
                     onNavigateBack = { navController.popBackStack() }
@@ -483,7 +470,6 @@ fun AppNavigation(container: AppContainer) {
             ) { backStackEntry ->
                 val noteId = backStackEntry.arguments?.getLong("noteId") ?: return@composable
                 AddDiaryNoteScreen(
-                    container = container,
                     catId = null,
                     noteId = noteId,
                     onNavigateBack = { navController.popBackStack() }
@@ -491,7 +477,7 @@ fun AppNavigation(container: AppContainer) {
             }
 
             composable(Screen.Settings.route) {
-                SettingsScreen(container = container)
+                SettingsScreen()
             }
         }
     }

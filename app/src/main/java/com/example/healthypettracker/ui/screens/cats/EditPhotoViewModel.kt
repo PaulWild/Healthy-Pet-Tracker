@@ -1,16 +1,20 @@
 package com.example.healthypettracker.ui.screens.cats
 
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.healthypettracker.domain.repository.CatRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import jakarta.inject.Inject
 import kotlinx.coroutines.launch
 
-class EditPhotoViewModel(
-    val catId: Long,
-    private val catRepository: CatRepository
+@HiltViewModel
+class EditPhotoViewModel @Inject constructor(
+    private val catRepository: CatRepository,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+    val catId: Long = savedStateHandle["catId"] ?: -1L
 
     fun savePhoto(newPhotoUri: Uri) {
         viewModelScope.launch {
@@ -21,13 +25,4 @@ class EditPhotoViewModel(
         }
     }
 
-    class Factory(
-        private val catId: Long,
-        private val catRepository: CatRepository
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return EditPhotoViewModel(catId, catRepository) as T
-        }
-    }
 }

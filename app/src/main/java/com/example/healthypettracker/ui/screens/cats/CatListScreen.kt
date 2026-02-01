@@ -1,8 +1,6 @@
 package com.example.healthypettracker.ui.screens.cats
 
-import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -38,53 +36,55 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.healthypettracker.data.local.entity.Cat
-import com.example.healthypettracker.di.AppContainer
 import com.example.healthypettracker.ui.components.CatCard
+
+class PhotoPickerController(
+    val pickFor: (Long) -> Unit
+)
+
+@Composable
+fun rememberPhotoPickerController(
+    onPhotoPicked: (catId: Long, uri: Uri) -> Unit
+): PhotoPickerController {
+    LocalContext.current
+    var pendingCatId by remember { mutableStateOf<Long?>(null) }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        val id = pendingCatId
+        if (uri != null && id != null) {
+            onPhotoPicked(id, uri)
+        }
+    }
+
+    return remember {
+        PhotoPickerController { catId ->
+            pendingCatId = catId
+            launcher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        }
+    }
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CatListScreen(
-    container: AppContainer,
     onNavigateToAddCat: () -> Unit,
     onNavigateToCatDetail: (Long) -> Unit,
     onNavigateToEditPhoto: (Long, Uri) -> Unit,
-    viewModel: CatListViewModel = viewModel(
-        factory = CatListViewModel.Factory(container.catRepository)
-    )
+    viewModel: CatListViewModel = hiltViewModel()
 ) {
     val cats by viewModel.cats.collectAsState()
     var catToDelete by remember { mutableStateOf<Cat?>(null) }
-    var pendingCatId by remember { mutableStateOf<Long?>(null) }
-    val context = LocalContext.current
+    LocalContext.current
 
+    val picker = rememberPhotoPickerController { catId, uri -> onNavigateToEditPhoto(catId, uri) }
 
-    val photoPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-
-        val catId = pendingCatId
-        if (uri != null && catId != null) {
-            Log.d("Picker", "Attempting to navigate with catId=$catId")
-
-            try {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            } catch (_: SecurityException) {
-                // Some URIs (e.g., from preview/recent) don't support persistable permissions
-            }
-
-
-
-            onNavigateToEditPhoto(catId, uri)
-
-
-        }
-
-    }
 
     Scaffold(
         topBar = {
@@ -120,8 +120,7 @@ fun CatListScreen(
                         cat = cat,
                         onClick = { onNavigateToCatDetail(cat.id) },
                         onSelectCatImage = {
-                            pendingCatId = cat.id
-                            photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            picker.pickFor(cat.id)
                         },
                         onDeleteClick = { catToDelete = cat }
                     )
