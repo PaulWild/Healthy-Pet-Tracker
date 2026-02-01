@@ -20,7 +20,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.canhub.cropper.CropImageView
+import com.example.healthypettracker.di.AppContainer
 import java.io.File
 import java.io.FileOutputStream
 
@@ -43,8 +45,13 @@ fun saveBitmapToInternalStorage(context: Context, bitmap: Bitmap): Uri {
 @Composable
 fun EditPhotoScreen(
     originalUri: Uri,
+    catId: Long,
+    container: AppContainer,
     onCancel: () -> Unit,
-    onSave: (Uri) -> Unit
+    onSave: () -> Unit,
+    viewModel: EditPhotoViewModel = viewModel(
+        factory = EditPhotoViewModel.Factory(container.catRepository)
+    )
 ) {
     val cropViewRef = remember { mutableStateOf<CropImageView?>(null) }
     val composeContext = LocalContext.current
@@ -81,7 +88,8 @@ fun EditPhotoScreen(
                         context = composeContext,
                         bitmap = cropped
                     )
-                    onSave(uri)
+                    viewModel.savePhoto(catId, uri)
+                    onSave()
                 }
             }) {
                 Text("Save")

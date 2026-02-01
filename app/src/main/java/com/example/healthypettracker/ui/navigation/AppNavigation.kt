@@ -1,5 +1,6 @@
 package com.example.healthypettracker.ui.navigation
 
+import android.net.Uri
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
@@ -17,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import android.net.Uri
 import androidx.core.net.toUri
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -146,11 +146,7 @@ fun AppNavigation(container: AppContainer) {
             startDestination = Screen.CatList.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.CatList.route) { backStackEntry ->
-                // Observe result from EditPhotoScreen
-                val croppedPhotoUri = backStackEntry.savedStateHandle.get<String>("croppedPhotoUri")
-                val croppedPhotoCatId = backStackEntry.savedStateHandle.get<Long>("croppedPhotoCatId")
-
+            composable(Screen.CatList.route) {
                 CatListScreen(
                     container = container,
                     onNavigateToAddCat = { navController.navigate(Screen.AddCat.route) },
@@ -158,15 +154,13 @@ fun AppNavigation(container: AppContainer) {
                         navController.navigate(Screen.CatDetail.createRoute(catId))
                     },
                     onNavigateToEditPhoto = { catId, uri ->
-                        navController.navigate(Screen.EditCatPhoto.createRoute(catId, uri.toString()))
-                    },
-                    onCroppedPhotoResult = if (croppedPhotoUri != null && croppedPhotoCatId != null) {
-                        {
-                            backStackEntry.savedStateHandle.remove<String>("croppedPhotoUri")
-                            backStackEntry.savedStateHandle.remove<Long>("croppedPhotoCatId")
-                            Pair(croppedPhotoCatId, croppedPhotoUri.toUri())
-                        }
-                    } else null
+                        navController.navigate(
+                            Screen.EditCatPhoto.createRoute(
+                                catId,
+                                uri.toString()
+                            )
+                        )
+                    }
                 )
             }
 
@@ -203,16 +197,10 @@ fun AppNavigation(container: AppContainer) {
 
                 EditPhotoScreen(
                     originalUri = originalUri,
+                    catId = catId,
+                    container = container,
                     onCancel = { navController.popBackStack() },
-                    onSave = { croppedUri ->
-                        navController.previousBackStackEntry
-                            ?.savedStateHandle
-                            ?.set("croppedPhotoUri", croppedUri.toString())
-                        navController.previousBackStackEntry
-                            ?.savedStateHandle
-                            ?.set("croppedPhotoCatId", catId)
-                        navController.popBackStack()
-                    }
+                    onSave = { navController.popBackStack() }
                 )
             }
 

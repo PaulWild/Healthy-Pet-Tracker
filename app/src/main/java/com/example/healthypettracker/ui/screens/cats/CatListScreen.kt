@@ -49,17 +49,10 @@ fun CatListScreen(
     onNavigateToAddCat: () -> Unit,
     onNavigateToCatDetail: (Long) -> Unit,
     onNavigateToEditPhoto: (Long, Uri) -> Unit,
-    onCroppedPhotoResult: (() -> Pair<Long, Uri>)? = null,
     viewModel: CatListViewModel = viewModel(
         factory = CatListViewModel.Factory(container.catRepository)
     )
 ) {
-    // Handle cropped photo result from EditPhotoScreen
-    onCroppedPhotoResult?.let { getResult ->
-        val (catId, uri) = getResult()
-        viewModel.addCatImage(catId, uri)
-    }
-
     val cats by viewModel.cats.collectAsState()
     var catToDelete by remember { mutableStateOf<Cat?>(null) }
 
