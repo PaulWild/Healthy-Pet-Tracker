@@ -1,6 +1,10 @@
-
 package com.example.healthypettracker.ui.screens.cats
 
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -43,12 +48,36 @@ fun CatListScreen(
     container: AppContainer,
     onNavigateToAddCat: () -> Unit,
     onNavigateToCatDetail: (Long) -> Unit,
+    onNavigateToEditPhoto: (Long, Uri) -> Unit,
+    onCroppedPhotoResult: (() -> Pair<Long, Uri>)? = null,
     viewModel: CatListViewModel = viewModel(
         factory = CatListViewModel.Factory(container.catRepository)
     )
 ) {
+    // Handle cropped photo result from EditPhotoScreen
+    onCroppedPhotoResult?.let { getResult ->
+        val (catId, uri) = getResult()
+        viewModel.addCatImage(catId, uri)
+    }
+
     val cats by viewModel.cats.collectAsState()
     var catToDelete by remember { mutableStateOf<Cat?>(null) }
+
+    var selectedCatId by remember { mutableStateOf<Long?>(null) }
+
+    val context = LocalContext.current
+    val photoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null && selectedCatId != null) {
+
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            onNavigateToEditPhoto(selectedCatId!!, uri)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -83,6 +112,10 @@ fun CatListScreen(
                     CatCard(
                         cat = cat,
                         onClick = { onNavigateToCatDetail(cat.id) },
+                        onSelectCatImage = {
+                            selectedCatId = cat.id
+                            photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        },
                         onDeleteClick = { catToDelete = cat }
                     )
                 }

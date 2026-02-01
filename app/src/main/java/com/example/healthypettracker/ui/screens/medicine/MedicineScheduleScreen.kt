@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -29,7 +28,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -82,12 +80,13 @@ class MedicineScheduleViewModel(
             initialValue = null
         )
 
-    val schedules: StateFlow<List<MedicineSchedule>> = medicineRepository.getSchedulesForMedicine(medicineId)
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    val schedules: StateFlow<List<MedicineSchedule>> =
+        medicineRepository.getSchedulesForMedicine(medicineId)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
 
     fun addSchedule(time: LocalTime, daysOfWeek: Int) {
         viewModelScope.launch {
@@ -119,15 +118,21 @@ class MedicineScheduleViewModel(
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
     class Factory(
         private val medicineRepository: MedicineRepository,
         private val catRepository: CatRepository,
         private val alarmScheduler: MedicineAlarmScheduler,
         private val medicineId: Long
     ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
+
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return MedicineScheduleViewModel(medicineRepository, catRepository, alarmScheduler, medicineId) as T
+            return MedicineScheduleViewModel(
+                medicineRepository,
+                catRepository,
+                alarmScheduler,
+                medicineId
+            ) as T
         }
     }
 }

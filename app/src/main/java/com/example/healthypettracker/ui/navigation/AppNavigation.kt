@@ -17,6 +17,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import android.net.Uri
+import androidx.core.net.toUri
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -30,6 +32,7 @@ import com.example.healthypettracker.di.AppContainer
 import com.example.healthypettracker.ui.screens.cats.AddEditCatScreen
 import com.example.healthypettracker.ui.screens.cats.CatDetailScreen
 import com.example.healthypettracker.ui.screens.cats.CatListScreen
+import com.example.healthypettracker.ui.screens.cats.EditPhotoScreen
 import com.example.healthypettracker.ui.screens.diary.AddDiaryNoteScreen
 import com.example.healthypettracker.ui.screens.diary.DiaryScreen
 import com.example.healthypettracker.ui.screens.food.AddFoodScreen
@@ -46,37 +49,53 @@ sealed class Screen(val route: String) {
     data object EditCat : Screen("cats/{catId}/edit") {
         fun createRoute(catId: Long) = "cats/$catId/edit"
     }
+
+    data object EditCatPhoto : Screen("cats/{catId}/edit/photo?uri={uri}") {
+        fun createRoute(catId: Long, uri: String) =
+            "cats/$catId/edit/photo?uri=${Uri.encode(uri)}"
+    }
+
     data object CatDetail : Screen("cats/{catId}") {
         fun createRoute(catId: Long) = "cats/$catId"
     }
+
     data object AddMedicine : Screen("cats/{catId}/medicine/add") {
         fun createRoute(catId: Long) = "cats/$catId/medicine/add"
     }
+
     data object EditMedicine : Screen("medicine/{medicineId}/edit") {
         fun createRoute(medicineId: Long) = "medicine/$medicineId/edit"
     }
+
     data object MedicineSchedule : Screen("medicine/{medicineId}/schedule") {
         fun createRoute(medicineId: Long) = "medicine/$medicineId/schedule"
     }
+
     data object AddWeight : Screen("cats/{catId}/weight/add") {
         fun createRoute(catId: Long) = "cats/$catId/weight/add"
     }
+
     data object WeightHistory : Screen("cats/{catId}/weight") {
         fun createRoute(catId: Long) = "cats/$catId/weight"
     }
+
     data object AddFood : Screen("cats/{catId}/food/add") {
         fun createRoute(catId: Long) = "cats/$catId/food/add"
     }
+
     data object FoodLog : Screen("cats/{catId}/food") {
         fun createRoute(catId: Long) = "cats/$catId/food"
     }
+
     data object Diary : Screen("diary")
     data object AddDiaryNote : Screen("cats/{catId}/diary/add") {
         fun createRoute(catId: Long) = "cats/$catId/diary/add"
     }
+
     data object EditDiaryNote : Screen("diary/{noteId}/edit") {
         fun createRoute(noteId: Long) = "diary/$noteId/edit"
     }
+
     data object Settings : Screen("settings")
 }
 
@@ -92,12 +111,14 @@ sealed class BottomNavItem(
         selectedIcon = Icons.Filled.Home,
         unselectedIcon = Icons.Outlined.Home
     )
+
     data object Diary : BottomNavItem(
         route = Screen.Diary.route,
         title = "Diary",
         selectedIcon = Icons.Filled.DateRange,
         unselectedIcon = Icons.Outlined.DateRange
     )
+
     data object Settings : BottomNavItem(
         route = Screen.Settings.route,
         title = "Settings",
@@ -125,13 +146,27 @@ fun AppNavigation(container: AppContainer) {
             startDestination = Screen.CatList.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.CatList.route) {
+            composable(Screen.CatList.route) { backStackEntry ->
+                // Observe result from EditPhotoScreen
+                val croppedPhotoUri = backStackEntry.savedStateHandle.get<String>("croppedPhotoUri")
+                val croppedPhotoCatId = backStackEntry.savedStateHandle.get<Long>("croppedPhotoCatId")
+
                 CatListScreen(
                     container = container,
                     onNavigateToAddCat = { navController.navigate(Screen.AddCat.route) },
                     onNavigateToCatDetail = { catId ->
                         navController.navigate(Screen.CatDetail.createRoute(catId))
-                    }
+                    },
+                    onNavigateToEditPhoto = { catId, uri ->
+                        navController.navigate(Screen.EditCatPhoto.createRoute(catId, uri.toString()))
+                    },
+                    onCroppedPhotoResult = if (croppedPhotoUri != null && croppedPhotoCatId != null) {
+                        {
+                            backStackEntry.savedStateHandle.remove<String>("croppedPhotoUri")
+                            backStackEntry.savedStateHandle.remove<Long>("croppedPhotoCatId")
+                            Pair(croppedPhotoCatId, croppedPhotoUri.toUri())
+                        }
+                    } else null
                 )
             }
 
@@ -156,6 +191,32 @@ fun AppNavigation(container: AppContainer) {
             }
 
             composable(
+                route = Screen.EditCatPhoto.route,
+                arguments = listOf(
+                    navArgument("catId") { type = NavType.LongType },
+                    navArgument("uri") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val catId = backStackEntry.arguments?.getLong("catId") ?: return@composable
+                val encodedUri = backStackEntry.arguments?.getString("uri") ?: return@composable
+                val originalUri = Uri.decode(encodedUri).toUri()
+
+                EditPhotoScreen(
+                    originalUri = originalUri,
+                    onCancel = { navController.popBackStack() },
+                    onSave = { croppedUri ->
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("croppedPhotoUri", croppedUri.toString())
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("croppedPhotoCatId", catId)
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable(
                 route = Screen.CatDetail.route,
                 arguments = listOf(navArgument("catId") { type = NavType.LongType })
             ) { backStackEntry ->
@@ -165,18 +226,42 @@ fun AppNavigation(container: AppContainer) {
                     catId = catId,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToEditCat = { navController.navigate(Screen.EditCat.createRoute(catId)) },
-                    onNavigateToAddMedicine = { navController.navigate(Screen.AddMedicine.createRoute(catId)) },
+                    onNavigateToAddMedicine = {
+                        navController.navigate(
+                            Screen.AddMedicine.createRoute(
+                                catId
+                            )
+                        )
+                    },
                     onNavigateToEditMedicine = { medicineId ->
                         navController.navigate(Screen.EditMedicine.createRoute(medicineId))
                     },
                     onNavigateToMedicineSchedule = { medicineId ->
                         navController.navigate(Screen.MedicineSchedule.createRoute(medicineId))
                     },
-                    onNavigateToAddWeight = { navController.navigate(Screen.AddWeight.createRoute(catId)) },
-                    onNavigateToWeightHistory = { navController.navigate(Screen.WeightHistory.createRoute(catId)) },
+                    onNavigateToAddWeight = {
+                        navController.navigate(
+                            Screen.AddWeight.createRoute(
+                                catId
+                            )
+                        )
+                    },
+                    onNavigateToWeightHistory = {
+                        navController.navigate(
+                            Screen.WeightHistory.createRoute(
+                                catId
+                            )
+                        )
+                    },
                     onNavigateToAddFood = { navController.navigate(Screen.AddFood.createRoute(catId)) },
                     onNavigateToFoodLog = { navController.navigate(Screen.FoodLog.createRoute(catId)) },
-                    onNavigateToAddDiaryNote = { navController.navigate(Screen.AddDiaryNote.createRoute(catId)) }
+                    onNavigateToAddDiaryNote = {
+                        navController.navigate(
+                            Screen.AddDiaryNote.createRoute(
+                                catId
+                            )
+                        )
+                    }
                 )
             }
 
@@ -197,7 +282,8 @@ fun AppNavigation(container: AppContainer) {
                 route = Screen.EditMedicine.route,
                 arguments = listOf(navArgument("medicineId") { type = NavType.LongType })
             ) { backStackEntry ->
-                val medicineId = backStackEntry.arguments?.getLong("medicineId") ?: return@composable
+                val medicineId =
+                    backStackEntry.arguments?.getLong("medicineId") ?: return@composable
                 AddEditMedicineScreen(
                     container = container,
                     catId = null,
@@ -210,7 +296,8 @@ fun AppNavigation(container: AppContainer) {
                 route = Screen.MedicineSchedule.route,
                 arguments = listOf(navArgument("medicineId") { type = NavType.LongType })
             ) { backStackEntry ->
-                val medicineId = backStackEntry.arguments?.getLong("medicineId") ?: return@composable
+                val medicineId =
+                    backStackEntry.arguments?.getLong("medicineId") ?: return@composable
                 MedicineScheduleScreen(
                     container = container,
                     medicineId = medicineId,
@@ -239,7 +326,13 @@ fun AppNavigation(container: AppContainer) {
                     container = container,
                     catId = catId,
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToAddWeight = { navController.navigate(Screen.AddWeight.createRoute(catId)) }
+                    onNavigateToAddWeight = {
+                        navController.navigate(
+                            Screen.AddWeight.createRoute(
+                                catId
+                            )
+                        )
+                    }
                 )
             }
 

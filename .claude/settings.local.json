@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(.\\\\gradlew assembleDebug:*)",
+      "Bash(gradlew assembleDebug:*)",
+      "Bash(cmd /c \"gradlew.bat assembleDebug\")",
+      "Bash(C:/Users/paulw/AndroidStudioProjects/HealthyPetTracker/gradlew.bat assembleDebug:*)"
     ]
   }
 }

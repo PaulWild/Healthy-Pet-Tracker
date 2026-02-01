@@ -30,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -85,13 +84,25 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory())
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val weightUnit by viewModel.weightUnit.collectAsState()
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
 
     // Track permission states and refresh when returning from settings
-    var hasNotificationPermission by remember { mutableStateOf(PermissionHelper.hasNotificationPermission(context)) }
-    var hasExactAlarmPermission by remember { mutableStateOf(PermissionHelper.hasExactAlarmPermission(context)) }
+    var hasNotificationPermission by remember {
+        mutableStateOf(
+            PermissionHelper.hasNotificationPermission(
+                context
+            )
+        )
+    }
+    var hasExactAlarmPermission by remember {
+        mutableStateOf(
+            PermissionHelper.hasExactAlarmPermission(
+                context
+            )
+        )
+    }
 
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->

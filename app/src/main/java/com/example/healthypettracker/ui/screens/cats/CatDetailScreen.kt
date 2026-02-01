@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -198,12 +199,14 @@ fun CatDetailScreen(
                     onNavigateToAddFood = onNavigateToAddFood,
                     onNavigateToFoodLog = onNavigateToFoodLog
                 )
+
                 1 -> MedicineTab(
                     viewModel = viewModel,
                     onNavigateToAddMedicine = onNavigateToAddMedicine,
                     onNavigateToEditMedicine = onNavigateToEditMedicine,
                     onNavigateToMedicineSchedule = onNavigateToMedicineSchedule
                 )
+
                 2 -> DiaryTab(
                     viewModel = viewModel,
                     onNavigateToAddDiaryNote = onNavigateToAddDiaryNote
@@ -230,7 +233,7 @@ private fun OverviewTab(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            cat?.let { CatInfoCard(cat = it) }
+            cat?.let { CatInfoCard(cat = it, onClick = {}) }
         }
 
         item {
@@ -251,7 +254,7 @@ private fun OverviewTab(
 }
 
 @Composable
-private fun CatInfoCard(cat: Cat) {
+private fun CatInfoCard(cat: Cat, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -264,7 +267,9 @@ private fun CatInfoCard(cat: Cat) {
         ) {
             CatAvatar(
                 name = cat.name,
-                modifier = Modifier.size(72.dp)
+                modifier = Modifier.size(72.dp),
+                photoUri = cat.photoUri?.toUri(),
+                onClick = onClick
             )
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -325,7 +330,13 @@ private fun WeightSummaryCard(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Last recorded: ${latestWeight.measuredAt.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}",
+                    text = "Last recorded: ${
+                        latestWeight.measuredAt.format(
+                            DateTimeFormatter.ofPattern(
+                                "MMM d, yyyy"
+                            )
+                        )
+                    }",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

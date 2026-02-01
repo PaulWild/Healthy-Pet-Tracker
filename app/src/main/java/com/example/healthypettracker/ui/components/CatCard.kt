@@ -1,9 +1,12 @@
 package com.example.healthypettracker.ui.components
 
+import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,15 +27,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
+import coil.compose.AsyncImage
 import com.example.healthypettracker.data.local.entity.Cat
 import java.time.LocalDate
 import java.time.Period
-import java.time.format.DateTimeFormatter
+
 
 @Composable
 fun CatCard(
     cat: Cat,
     onClick: () -> Unit,
+    onSelectCatImage: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -50,7 +56,9 @@ fun CatCard(
         ) {
             CatAvatar(
                 name = cat.name,
-                modifier = Modifier.size(56.dp)
+                modifier = Modifier.size(56.dp),
+                onClick = onSelectCatImage,
+                photoUri = cat.photoUri?.toUri()
             )
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -94,22 +102,39 @@ fun CatCard(
 @Composable
 fun CatAvatar(
     name: String,
-    modifier: Modifier = Modifier
+    photoUri: Uri?,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
     Card(
-        modifier = modifier.clip(CircleShape),
+        modifier = modifier
+            .clip(CircleShape)
+            .clickable { onClick() },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
     ) {
-        Text(
-            text = name.take(2).uppercase(),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(12.dp)
-        )
+        if (photoUri != null) {
+            AsyncImage(
+                model = photoUri,
+                contentDescription = "$name photo",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = name.take(2).uppercase(),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
     }
 }
 
@@ -125,6 +150,7 @@ private fun calculateAge(birthDate: LocalDate): String {
                 "${period.years} year${if (period.years > 1) "s" else ""} old"
             }
         }
+
         period.months > 0 -> "${period.months} month${if (period.months > 1) "s" else ""} old"
         period.days > 0 -> "${period.days} day${if (period.days > 1) "s" else ""} old"
         else -> "Born today"

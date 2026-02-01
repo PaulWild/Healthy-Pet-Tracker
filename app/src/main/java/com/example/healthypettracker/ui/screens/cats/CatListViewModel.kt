@@ -1,5 +1,6 @@
 package com.example.healthypettracker.ui.screens.cats
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -26,6 +27,17 @@ class CatListViewModel(
             catRepository.deleteCat(cat)
         }
     }
+
+    fun addCatImage(catId: Long, uri: Uri) {
+        viewModelScope.launch {
+            val cat = catRepository.getCatById(catId)
+            if (cat != null) {
+                val updatedCat = cat.copy(photoUri = uri.toString())
+                catRepository.updateCat(updatedCat)
+            }
+        }
+    }
+
 
     class Factory(private val catRepository: CatRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
