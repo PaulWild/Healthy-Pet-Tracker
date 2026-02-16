@@ -2,6 +2,7 @@ package com.example.healthypettracker.ui.screens.diary
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,8 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Card
@@ -46,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -71,10 +71,17 @@ fun DiaryScreen(
     val timelineEntries by viewModel.timelineEntries.collectAsState()
     val selectedDate by viewModel.selectedDate.collectAsState()
 
+    val today = LocalDate.now()
+    val monthTitle = if (selectedDate.year == today.year) {
+        selectedDate.format(DateTimeFormatter.ofPattern("MMMM"))
+    } else {
+        selectedDate.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Diary") },
+                title = { Text(monthTitle) },
                 actions = {
                     if (cats.isNotEmpty()) {
                         CatSelectorHeader(
@@ -107,47 +114,35 @@ fun DiaryScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Date navigation controls
+            // Date display
             DateNavigationControls(
-                selectedDate = selectedDate,
-                onPreviousDay = { viewModel.goToPreviousDay() },
-                onNextDay = { viewModel.goToNextDay() }
+                selectedDate = selectedDate
             )
 
             HorizontalDivider()
 
-            if (cats.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "No cats yet",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Add a cat first to start tracking",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+            // Swipeable content area
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        var swipeOffset = 0f
+                        detectHorizontalDragGestures(
+                            onDragEnd = {
+                                if (swipeOffset < -100) {
+                                    viewModel.goToNextDay()
+                                } else if (swipeOffset > 100) {
+                                    viewModel.goToPreviousDay()
+                                }
+                                swipeOffset = 0f
+                            },
+                            onHorizontalDrag = { _, dragAmount ->
+                                swipeOffset += dragAmount
+                            }
                         )
                     }
-                }
-            } else {
-                if (timelineEntries.isEmpty()) {
-                    val today = LocalDate.now()
-                    val emptyStateText = when (selectedDate) {
-                        today -> "No entries for today"
-                        today.minusDays(1) -> "No entries for yesterday"
-                        today.plusDays(1) -> "No entries for tomorrow"
-                        else -> "No entries for this day"
-                    }
+            ) {
+                if (cats.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -158,34 +153,66 @@ fun DiaryScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = emptyStateText,
+                                text = "No cats yet",
                                 style = MaterialTheme.typography.headlineSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Use the arrows to navigate between days",
+                                text = "Add a cat first to start tracking",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(
-                            timelineEntries,
-                            key = { "${it::class.simpleName}_${it.dateTime}_${it.catName}" }
-                        ) { entry ->
-                            TimelineItemCard(
-                                entry = entry,
-                                onClick = if (entry is TimelineEntry.Diary) {
-                                    { onNavigateToEditDiaryNote(entry.noteId) }
-                                } else null
-                            )
+                    if (timelineEntries.isEmpty()) {
+                        val today = LocalDate.now()
+                        val emptyStateText = when (selectedDate) {
+                            today -> "No entries for today"
+                            today.minusDays(1) -> "No entries for yesterday"
+                            today.plusDays(1) -> "No entries for tomorrow"
+                            else -> "No entries for this day"
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = emptyStateText,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Swipe or use arrows to navigate between days",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(
+                                timelineEntries,
+                                key = { "${it::class.simpleName}_${it.dateTime}_${it.catName}" }
+                            ) { entry ->
+                                TimelineItemCard(
+                                    entry = entry,
+                                    onClick = if (entry is TimelineEntry.Diary) {
+                                        { onNavigateToEditDiaryNote(entry.noteId) }
+                                    } else null
+                                )
+                            }
                         }
                     }
                 }
@@ -196,46 +223,22 @@ fun DiaryScreen(
 
 @Composable
 private fun DateNavigationControls(
-    selectedDate: LocalDate,
-    onPreviousDay: () -> Unit,
-    onNextDay: () -> Unit
+    selectedDate: LocalDate
 ) {
-    val today = LocalDate.now()
-    val dateText = when (selectedDate) {
-        today -> "Today"
-        today.minusDays(1) -> "Yesterday"
-        today.plusDays(1) -> "Tomorrow"
-        else -> {
-            if (selectedDate.year == today.year) {
-                selectedDate.format(DateTimeFormatter.ofPattern("d MMMM"))
-            } else {
-                selectedDate.format(DateTimeFormatter.ofPattern("d MMMM yyyy"))
-            }
-        }
-    }
+    // Format: "Mon 16" - 3-letter day abbreviation + day of month
+    val dateText = selectedDate.format(DateTimeFormatter.ofPattern("EEE d"))
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.Center,
+        horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onPreviousDay) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous day")
-        }
-        Box(
-            modifier = Modifier.width(140.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = dateText,
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-        IconButton(onClick = onNextDay) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next day")
-        }
+        Text(
+            text = dateText,
+            style = MaterialTheme.typography.titleMedium
+        )
     }
 }
 
