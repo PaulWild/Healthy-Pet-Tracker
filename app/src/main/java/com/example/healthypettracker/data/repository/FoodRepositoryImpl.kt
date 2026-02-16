@@ -23,6 +23,13 @@ class FoodRepositoryImpl(private val foodDao: FoodDao) : FoodRepository {
     override fun getRecentFoodEntries(catId: Long, limit: Int): Flow<List<FoodEntry>> =
         foodDao.getRecentFoodEntries(catId, limit)
 
+    override fun getFoodEntriesForDateRange(
+        catId: Long,
+        startDate: LocalDateTime,
+        endDate: LocalDateTime
+    ): Flow<List<FoodEntry>> =
+        foodDao.getFoodEntriesForDateRange(catId, startDate, endDate)
+
     override suspend fun insertFoodEntry(entry: FoodEntry): Long =
         foodDao.insert(entry)
 

@@ -27,6 +27,9 @@ interface WeightDao {
     @Query("SELECT * FROM weight_entries WHERE catId = :catId AND measuredAt >= :since ORDER BY measuredAt ASC")
     fun getWeightEntriesSince(catId: Long, since: LocalDateTime): Flow<List<WeightEntry>>
 
+    @Query("SELECT * FROM weight_entries WHERE catId = :catId AND measuredAt >= :startDate AND measuredAt < :endDate ORDER BY measuredAt DESC")
+    fun getWeightEntriesForDateRange(catId: Long, startDate: LocalDateTime, endDate: LocalDateTime): Flow<List<WeightEntry>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entry: WeightEntry): Long
 

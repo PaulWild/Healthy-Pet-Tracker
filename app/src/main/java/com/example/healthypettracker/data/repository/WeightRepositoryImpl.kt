@@ -22,6 +22,13 @@ class WeightRepositoryImpl(private val weightDao: WeightDao) : WeightRepository 
     override fun getWeightEntriesSince(catId: Long, since: LocalDateTime): Flow<List<WeightEntry>> =
         weightDao.getWeightEntriesSince(catId, since)
 
+    override fun getWeightEntriesForDateRange(
+        catId: Long,
+        startDate: LocalDateTime,
+        endDate: LocalDateTime
+    ): Flow<List<WeightEntry>> =
+        weightDao.getWeightEntriesForDateRange(catId, startDate, endDate)
+
     override suspend fun insertWeightEntry(entry: WeightEntry): Long =
         weightDao.insert(entry)
 

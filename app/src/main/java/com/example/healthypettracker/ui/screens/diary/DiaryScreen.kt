@@ -2,7 +2,6 @@ package com.example.healthypettracker.ui.screens.diary
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -36,16 +37,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -121,101 +123,120 @@ fun DiaryScreen(
 
             HorizontalDivider()
 
-            // Swipeable content area
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        var swipeOffset = 0f
-                        detectHorizontalDragGestures(
-                            onDragEnd = {
-                                if (swipeOffset < -100) {
-                                    viewModel.goToNextDay()
-                                } else if (swipeOffset > 100) {
-                                    viewModel.goToPreviousDay()
-                                }
-                                swipeOffset = 0f
-                            },
-                            onHorizontalDrag = { _, dragAmount ->
-                                swipeOffset += dragAmount
-                            }
+            // HorizontalPager for swipeable day navigation
+            if (cats.isEmpty()) {
+                // No cats - show empty state without pager
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "No cats yet",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Add a cat first to start tracking",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-            ) {
-                if (cats.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "No cats yet",
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Add a cat first to start tracking",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                } else {
-                    if (timelineEntries.isEmpty()) {
-                        val today = LocalDate.now()
-                        val emptyStateText = when (selectedDate) {
-                            today -> "No entries for today"
-                            today.minusDays(1) -> "No entries for yesterday"
-                            today.plusDays(1) -> "No entries for tomorrow"
-                            else -> "No entries for this day"
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = emptyStateText,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Swipe or use arrows to navigate between days",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(
-                                timelineEntries,
-                                key = { "${it::class.simpleName}_${it.dateTime}_${it.catName}" }
-                            ) { entry ->
-                                TimelineItemCard(
-                                    entry = entry,
-                                    onClick = if (entry is TimelineEntry.Diary) {
-                                        { onNavigateToEditDiaryNote(entry.noteId) }
-                                    } else null
-                                )
-                            }
-                        }
-                    }
                 }
+            } else {
+                // Use a large initial page to allow swiping both directions
+                val initialPage = 10000
+                val pagerState = rememberPagerState(initialPage = initialPage) { Int.MAX_VALUE }
+
+                // Sync pager position with selectedDate and trigger dynamic loading
+                LaunchedEffect(pagerState) {
+                    snapshotFlow { pagerState.currentPage }
+                        .collect { page ->
+                            val dayOffset = page - initialPage
+                            val pageDate = today.plusDays(dayOffset.toLong())
+                            viewModel.setDateOffset(dayOffset)
+                            viewModel.onDateApproached(pageDate)
+                        }
+                }
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    val pageDate = today.plusDays((page - initialPage).toLong())
+                    // Filter entries for this specific page's date
+                    val pageEntries = remember(timelineEntries, pageDate) {
+                        timelineEntries.filter { it.dateTime.toLocalDate() == pageDate }
+                    }
+                    DiaryDayContent(
+                        date = pageDate,
+                        timelineEntries = pageEntries,
+                        onNavigateToEditDiaryNote = onNavigateToEditDiaryNote
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiaryDayContent(
+    date: LocalDate,
+    timelineEntries: List<TimelineEntry>,
+    onNavigateToEditDiaryNote: (Long) -> Unit
+) {
+    val today = LocalDate.now()
+
+    if (timelineEntries.isEmpty()) {
+        val emptyStateText = when (date) {
+            today -> "No entries for today"
+            today.minusDays(1) -> "No entries for yesterday"
+            today.plusDays(1) -> "No entries for tomorrow"
+            else -> "No entries for this day"
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = emptyStateText,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Swipe to navigate between days",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(
+                timelineEntries,
+                key = { "${it::class.simpleName}_${it.dateTime}_${it.catName}" }
+            ) { entry ->
+                TimelineItemCard(
+                    entry = entry,
+                    onClick = if (entry is TimelineEntry.Diary) {
+                        { onNavigateToEditDiaryNote(entry.noteId) }
+                    } else null
+                )
             }
         }
     }

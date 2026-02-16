@@ -24,6 +24,9 @@ interface FoodDao {
     @Query("SELECT * FROM food_entries WHERE catId = :catId ORDER BY fedAt DESC LIMIT :limit")
     fun getRecentFoodEntries(catId: Long, limit: Int): Flow<List<FoodEntry>>
 
+    @Query("SELECT * FROM food_entries WHERE catId = :catId AND fedAt >= :startDate AND fedAt < :endDate ORDER BY fedAt DESC")
+    fun getFoodEntriesForDateRange(catId: Long, startDate: LocalDateTime, endDate: LocalDateTime): Flow<List<FoodEntry>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entry: FoodEntry): Long
 

@@ -10,6 +10,7 @@ interface WeightRepository {
     fun getLatestWeightEntry(catId: Long): Flow<WeightEntry?>
     suspend fun getWeightEntryById(entryId: Long): WeightEntry?
     fun getWeightEntriesSince(catId: Long, since: LocalDateTime): Flow<List<WeightEntry>>
+    fun getWeightEntriesForDateRange(catId: Long, startDate: LocalDateTime, endDate: LocalDateTime): Flow<List<WeightEntry>>
     suspend fun insertWeightEntry(entry: WeightEntry): Long
     suspend fun updateWeightEntry(entry: WeightEntry)
     suspend fun deleteWeightEntry(entry: WeightEntry)

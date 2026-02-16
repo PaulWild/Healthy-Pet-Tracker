@@ -9,6 +9,7 @@ interface FoodRepository {
     fun getFoodEntriesForDay(catId: Long, startOfDay: LocalDateTime, endOfDay: LocalDateTime): Flow<List<FoodEntry>>
     suspend fun getFoodEntryById(entryId: Long): FoodEntry?
     fun getRecentFoodEntries(catId: Long, limit: Int): Flow<List<FoodEntry>>
+    fun getFoodEntriesForDateRange(catId: Long, startDate: LocalDateTime, endDate: LocalDateTime): Flow<List<FoodEntry>>
     suspend fun insertFoodEntry(entry: FoodEntry): Long
     suspend fun updateFoodEntry(entry: FoodEntry)
     suspend fun deleteFoodEntry(entry: FoodEntry)

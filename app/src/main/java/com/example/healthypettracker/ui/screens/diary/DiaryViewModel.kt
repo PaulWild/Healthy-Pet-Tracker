@@ -13,8 +13,6 @@ import com.example.healthypettracker.domain.repository.MedicineRepository
 import com.example.healthypettracker.domain.repository.WeightRepository
 import com.example.healthypettracker.ui.components.TimelineEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.time.LocalDate
-import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +24,22 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import javax.inject.Inject
+
+data class LoadedDateRange(
+    val startDate: LocalDate,
+    val endDate: LocalDate
+) {
+    fun isNearStart(date: LocalDate, threshold: Int): Boolean =
+        date.minusDays(threshold.toLong()) <= startDate
+
+    fun isNearEnd(date: LocalDate, threshold: Int): Boolean =
+        date.plusDays(threshold.toLong()) >= endDate
+}
 
 private sealed class CatData {
     data class Diary(val notes: List<DiaryNote>) : CatData()
@@ -41,6 +55,19 @@ class DiaryViewModel @Inject constructor(
     private val foodRepository: FoodRepository,
     private val medicineRepository: MedicineRepository
 ) : ViewModel() {
+
+    companion object {
+        const val INITIAL_WINDOW_DAYS = 7
+        const val EXPANSION_DAYS = 14
+        const val EDGE_THRESHOLD_DAYS = 3
+    }
+
+    private val _loadedRange = MutableStateFlow(
+        LoadedDateRange(
+            startDate = LocalDate.now().minusDays(INITIAL_WINDOW_DAYS.toLong()),
+            endDate = LocalDate.now().plusDays(INITIAL_WINDOW_DAYS.toLong())
+        )
+    )
 
     val cats: StateFlow<List<Cat>> = catRepository.getAllCats()
         .stateIn(
@@ -62,11 +89,11 @@ class DiaryViewModel @Inject constructor(
     val timelineEntries: StateFlow<List<TimelineEntry>> = combine(
         cats,
         _selectedCatIds,
-        _selectedDate
-    ) { catsList, selectedIds, selectedDate ->
+        _loadedRange
+    ) { catsList, selectedIds, loadedRange ->
         _catNameMap.value = catsList.associate { it.id to it.name }
-        Triple(selectedIds, catsList, selectedDate)
-    }.flatMapLatest { (selectedIds, catsList, selectedDate) ->
+        Triple(selectedIds, catsList, loadedRange)
+    }.flatMapLatest { (selectedIds, catsList, loadedRange) ->
         if (catsList.isEmpty()) {
             flowOf(emptyList())
         } else {
@@ -83,12 +110,19 @@ class DiaryViewModel @Inject constructor(
                 selectedIds.toList()
             }
 
-            // Create typed flows for each data source
+            // Use dynamic date range from loadedRange
+            val rangeStart = LocalDateTime.of(loadedRange.startDate, LocalTime.MIN)
+            val rangeEnd = LocalDateTime.of(loadedRange.endDate.plusDays(1), LocalTime.MIN)
+
+            // Create typed flows for each data source with date range filtering at DB level
             val typedFlows: List<Flow<CatData>> = catIds.flatMap { catId ->
                 listOf(
-                    diaryRepository.getDiaryNotesForCat(catId).map { CatData.Diary(it) },
-                    weightRepository.getWeightEntriesForCat(catId).map { CatData.Weight(it) },
-                    foodRepository.getFoodEntriesForCat(catId).map { CatData.Food(it) }
+                    diaryRepository.getDiaryNotesForDateRange(catId, rangeStart, rangeEnd)
+                        .map { CatData.Diary(it) },
+                    weightRepository.getWeightEntriesForDateRange(catId, rangeStart, rangeEnd)
+                        .map { CatData.Weight(it) },
+                    foodRepository.getFoodEntriesForDateRange(catId, rangeStart, rangeEnd)
+                        .map { CatData.Food(it) }
                 )
             }
 
@@ -111,6 +145,7 @@ class DiaryViewModel @Inject constructor(
                                 )
                             )
                         }
+
                         is CatData.Weight -> data.entries.forEach { entry ->
                             allEntries.add(
                                 TimelineEntry.Weight(
@@ -121,6 +156,7 @@ class DiaryViewModel @Inject constructor(
                                 )
                             )
                         }
+
                         is CatData.Food -> data.entries.forEach { entry ->
                             allEntries.add(
                                 TimelineEntry.Food(
@@ -136,10 +172,8 @@ class DiaryViewModel @Inject constructor(
                     }
                 }
 
-                // Filter by selected date and sort by time, newest first
-                allEntries
-                    .filter { it.dateTime.toLocalDate() == selectedDate }
-                    .sortedByDescending { it.dateTime }
+                // Sort newest first (date filtering already done at DB level)
+                allEntries.sortedByDescending { it.dateTime }
             }
         }
     }.stateIn(
@@ -162,6 +196,22 @@ class DiaryViewModel @Inject constructor(
 
     fun goToNextDay() {
         _selectedDate.value = _selectedDate.value.plusDays(1)
+    }
+
+    fun setDateOffset(daysFromToday: Int) {
+        _selectedDate.value = LocalDate.now().plusDays(daysFromToday.toLong())
+    }
+
+    fun onDateApproached(date: LocalDate) {
+        val currentRange = _loadedRange.value
+
+        if (currentRange.isNearStart(date, EDGE_THRESHOLD_DAYS)) {
+            _loadedRange.update { it.copy(startDate = it.startDate.minusDays(EXPANSION_DAYS.toLong())) }
+        }
+
+        if (currentRange.isNearEnd(date, EDGE_THRESHOLD_DAYS)) {
+            _loadedRange.update { it.copy(endDate = it.endDate.plusDays(EXPANSION_DAYS.toLong())) }
+        }
     }
 
 }
