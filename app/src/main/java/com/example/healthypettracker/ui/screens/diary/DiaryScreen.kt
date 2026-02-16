@@ -1,5 +1,7 @@
 package com.example.healthypettracker.ui.screens.diary
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,19 +21,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,6 +42,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -201,6 +205,7 @@ private fun DateHeader(date: LocalDate) {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CatSelectorHeader(
     cats: List<Cat>,
@@ -208,7 +213,8 @@ private fun CatSelectorHeader(
     onToggleCat: (Long) -> Unit,
     onSelectAll: () -> Unit
 ) {
-    var showDropdown by remember { mutableStateOf(false) }
+    var showSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
     val displayCats = if (selectedCatIds.isEmpty()) cats else cats.filter { it.id in selectedCatIds }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -226,36 +232,135 @@ private fun CatSelectorHeader(
             }
         }
 
-        // Chevron
-        IconButton(onClick = { showDropdown = true }) {
+        // Chevron opens sheet
+        IconButton(onClick = { showSheet = true }) {
             Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Select cats")
         }
+    }
 
-        // Multi-select dropdown
-        DropdownMenu(
-            expanded = showDropdown,
-            onDismissRequest = { showDropdown = false }
+    // Bottom sheet with cat cards
+    if (showSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showSheet = false },
+            sheetState = sheetState
         ) {
-            DropdownMenuItem(
-                text = { Text("All cats") },
-                onClick = { onSelectAll(); showDropdown = false },
-                leadingIcon = {
-                    Checkbox(
-                        checked = selectedCatIds.isEmpty(),
-                        onCheckedChange = null
-                    )
-                }
+            CatSelectorSheetContent(
+                cats = cats,
+                selectedCatIds = selectedCatIds,
+                onToggleCat = onToggleCat,
+                onSelectAll = onSelectAll
             )
-            cats.forEach { cat ->
-                DropdownMenuItem(
-                    text = { Text(cat.name) },
-                    onClick = { onToggleCat(cat.id) },
-                    leadingIcon = {
-                        Checkbox(
-                            checked = cat.id in selectedCatIds,
-                            onCheckedChange = null
+        }
+    }
+}
+
+@Composable
+private fun CatSelectorSheetContent(
+    cats: List<Cat>,
+    selectedCatIds: Set<Long>,
+    onToggleCat: (Long) -> Unit,
+    onSelectAll: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        // "All cats" option at top
+        SelectableCatCard(
+            cat = null,
+            name = "All Cats",
+            isSelected = selectedCatIds.isEmpty(),
+            onClick = onSelectAll
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // List of cat cards
+        cats.forEach { cat ->
+            SelectableCatCard(
+                cat = cat,
+                name = cat.name,
+                isSelected = cat.id in selectedCatIds,
+                onClick = { onToggleCat(cat.id) }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Bottom padding for gesture area
+        Spacer(modifier = Modifier.height(32.dp))
+    }
+}
+
+@Composable
+private fun SelectableCatCard(
+    cat: Cat?,
+    name: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+    val glowColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (isSelected) {
+                    Modifier
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = MaterialTheme.shapes.medium,
+                            ambientColor = glowColor,
+                            spotColor = glowColor
+                        )
+                        .border(
+                            width = 2.dp,
+                            color = borderColor,
+                            shape = MaterialTheme.shapes.medium
+                        )
+                } else Modifier
+            )
+            .clickable(onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (cat != null) {
+                // Cat avatar
+                SmallCatAvatar(cat = cat, modifier = Modifier.size(48.dp))
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = cat.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    cat.breed?.let { breed ->
+                        Text(
+                            text = breed,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
+            } else {
+                // "All cats" row
+                Icon(
+                    imageVector = Icons.Default.Favorite,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -263,9 +368,13 @@ private fun CatSelectorHeader(
 }
 
 @Composable
-private fun SmallCatAvatar(cat: Cat, modifier: Modifier = Modifier) {
+private fun SmallCatAvatar(
+    cat: Cat,
+    modifier: Modifier = Modifier,
+    defaultSize: Int = 32
+) {
     Card(
-        modifier = modifier.size(32.dp),
+        modifier = modifier.size(defaultSize.dp),
         shape = CircleShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
