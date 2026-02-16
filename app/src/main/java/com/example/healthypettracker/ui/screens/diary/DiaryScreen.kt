@@ -19,12 +19,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -66,6 +69,7 @@ fun DiaryScreen(
     val cats by viewModel.cats.collectAsState()
     val selectedCatIds by viewModel.selectedCatIds.collectAsState()
     val timelineEntries by viewModel.timelineEntries.collectAsState()
+    val selectedDate by viewModel.selectedDate.collectAsState()
 
     Scaffold(
         topBar = {
@@ -103,6 +107,15 @@ fun DiaryScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // Date navigation controls
+            DateNavigationControls(
+                selectedDate = selectedDate,
+                onPreviousDay = { viewModel.goToPreviousDay() },
+                onNextDay = { viewModel.goToNextDay() }
+            )
+
+            HorizontalDivider()
+
             if (cats.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -128,6 +141,13 @@ fun DiaryScreen(
                 }
             } else {
                 if (timelineEntries.isEmpty()) {
+                    val today = LocalDate.now()
+                    val emptyStateText = when (selectedDate) {
+                        today -> "No entries for today"
+                        today.minusDays(1) -> "No entries for yesterday"
+                        today.plusDays(1) -> "No entries for tomorrow"
+                        else -> "No entries for this day"
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -138,46 +158,34 @@ fun DiaryScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "No entries yet",
+                                text = emptyStateText,
                                 style = MaterialTheme.typography.headlineSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Your timeline will show all activities",
+                                text = "Use the arrows to navigate between days",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 } else {
-                    // Group entries by date
-                    val groupedEntries = timelineEntries.groupBy { it.dateTime.toLocalDate() }
-
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        groupedEntries.forEach { (date, entries) ->
-                            item {
-                                DateHeader(date = date)
-                            }
-
-                            items(
-                                entries,
-                                key = { "${it::class.simpleName}_${it.dateTime}_${it.catName}" }) { entry ->
-                                TimelineItemCard(
-                                    entry = entry,
-                                    onClick = if (entry is TimelineEntry.Diary) {
-                                        { onNavigateToEditDiaryNote(entry.noteId) }
-                                    } else null
-                                )
-                            }
-
-                            item {
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
+                        items(
+                            timelineEntries,
+                            key = { "${it::class.simpleName}_${it.dateTime}_${it.catName}" }
+                        ) { entry ->
+                            TimelineItemCard(
+                                entry = entry,
+                                onClick = if (entry is TimelineEntry.Diary) {
+                                    { onNavigateToEditDiaryNote(entry.noteId) }
+                                } else null
+                            )
                         }
                     }
                 }
@@ -187,20 +195,48 @@ fun DiaryScreen(
 }
 
 @Composable
-private fun DateHeader(date: LocalDate) {
+private fun DateNavigationControls(
+    selectedDate: LocalDate,
+    onPreviousDay: () -> Unit,
+    onNextDay: () -> Unit
+) {
     val today = LocalDate.now()
-    val dateText = when {
-        date == today -> "Today"
-        date == today.minusDays(1) -> "Yesterday"
-        else -> date.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
+    val dateText = when (selectedDate) {
+        today -> "Today"
+        today.minusDays(1) -> "Yesterday"
+        today.plusDays(1) -> "Tomorrow"
+        else -> {
+            if (selectedDate.year == today.year) {
+                selectedDate.format(DateTimeFormatter.ofPattern("d MMMM"))
+            } else {
+                selectedDate.format(DateTimeFormatter.ofPattern("d MMMM yyyy"))
+            }
+        }
     }
 
-    Text(
-        text = dateText,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(vertical = 8.dp)
-    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onPreviousDay) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous day")
+        }
+        Box(
+            modifier = Modifier.width(140.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = dateText,
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+        IconButton(onClick = onNextDay) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next day")
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
