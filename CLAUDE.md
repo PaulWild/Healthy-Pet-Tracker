@@ -87,3 +87,11 @@ fun MyPreview() {
 ```
 
 Edge-to-edge display is enabled via `enableEdgeToEdge()` in MainActivity.
+
+## Production Rules
+
+This is a **production application**. Follow these rules:
+
+- **Database schema changes must use migrations** - Never modify existing schemas directly. Always create Room migrations to preserve user data.
+- **Follow MVVM architecture** - All code should follow the Model-View-ViewModel pattern. If deviating from MVVM is necessary, provide a detailed explanation of why it cannot be done.
+- **Do not build the application** - When completing work, do not attempt to build or compile the application.
