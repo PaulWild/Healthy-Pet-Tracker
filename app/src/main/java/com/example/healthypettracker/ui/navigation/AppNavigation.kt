@@ -437,6 +437,9 @@ fun AppNavigation() {
                     },
                     onNavigateToEditDiaryNote = { noteId ->
                         navController.navigate(Screen.EditDiaryNote.createRoute(noteId))
+                    },
+                    onNavigateToWeightHistory = { catId ->
+                        navController.navigate(Screen.WeightHistory.createRoute(catId))
                     }
                 )
             }

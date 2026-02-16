@@ -66,6 +66,7 @@ import java.time.format.DateTimeFormatter
 fun DiaryScreen(
     onNavigateToAddDiaryNote: (Long) -> Unit,
     onNavigateToEditDiaryNote: (Long) -> Unit,
+    onNavigateToWeightHistory: (Long) -> Unit,
     viewModel: DiaryViewModel = hiltViewModel()
 ) {
     val cats by viewModel.cats.collectAsState()
@@ -176,7 +177,8 @@ fun DiaryScreen(
                     DiaryDayContent(
                         date = pageDate,
                         timelineEntries = pageEntries,
-                        onNavigateToEditDiaryNote = onNavigateToEditDiaryNote
+                        onNavigateToEditDiaryNote = onNavigateToEditDiaryNote,
+                        onNavigateToWeightHistory = onNavigateToWeightHistory
                     )
                 }
             }
@@ -188,7 +190,8 @@ fun DiaryScreen(
 private fun DiaryDayContent(
     date: LocalDate,
     timelineEntries: List<TimelineEntry>,
-    onNavigateToEditDiaryNote: (Long) -> Unit
+    onNavigateToEditDiaryNote: (Long) -> Unit,
+    onNavigateToWeightHistory: (Long) -> Unit
 ) {
     val today = LocalDate.now()
 
@@ -233,9 +236,11 @@ private fun DiaryDayContent(
             ) { entry ->
                 TimelineItemCard(
                     entry = entry,
-                    onClick = if (entry is TimelineEntry.Diary) {
-                        { onNavigateToEditDiaryNote(entry.noteId) }
-                    } else null
+                    onClick = when (entry) {
+                        is TimelineEntry.Diary -> {{ onNavigateToEditDiaryNote(entry.noteId) }}
+                        is TimelineEntry.Weight -> {{ onNavigateToWeightHistory(entry.catId) }}
+                        else -> null
+                    }
                 )
             }
         }

@@ -32,6 +32,7 @@ sealed class TimelineEntry(
     class Weight(
         dateTime: LocalDateTime,
         catName: String,
+        val catId: Long,
         val weightGrams: Int,
         val notes: String?
     ) : TimelineEntry(dateTime, catName)

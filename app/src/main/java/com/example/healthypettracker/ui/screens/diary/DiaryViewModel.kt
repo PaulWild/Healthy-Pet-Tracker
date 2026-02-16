@@ -151,6 +151,7 @@ class DiaryViewModel @Inject constructor(
                                 TimelineEntry.Weight(
                                     dateTime = entry.measuredAt,
                                     catName = catNameMap[entry.catId] ?: "Unknown",
+                                    catId = entry.catId,
                                     weightGrams = entry.weightGrams,
                                     notes = entry.notes
                                 )
