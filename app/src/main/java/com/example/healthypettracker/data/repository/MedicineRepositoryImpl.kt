@@ -54,6 +54,9 @@ class MedicineRepositoryImpl(private val medicineDao: MedicineDao) : MedicineRep
     override fun getRecentLogsForMedicine(medicineId: Long, since: LocalDateTime): Flow<List<MedicineLog>> =
         medicineDao.getRecentLogsForMedicine(medicineId, since)
 
+    override fun getLogsForMedicinesInRange(medicineIds: List<Long>, start: LocalDateTime, end: LocalDateTime): Flow<List<MedicineLog>> =
+        medicineDao.getLogsForMedicinesInRange(medicineIds, start, end)
+
     override suspend fun insertLog(log: MedicineLog): Long =
         medicineDao.insertLog(log)
 

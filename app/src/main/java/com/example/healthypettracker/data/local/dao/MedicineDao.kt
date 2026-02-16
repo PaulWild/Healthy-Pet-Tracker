@@ -65,6 +65,9 @@ interface MedicineDao {
     @Query("SELECT * FROM medicine_logs WHERE medicineId = :medicineId AND administeredAt >= :since ORDER BY administeredAt DESC")
     fun getRecentLogsForMedicine(medicineId: Long, since: LocalDateTime): Flow<List<MedicineLog>>
 
+    @Query("SELECT * FROM medicine_logs WHERE medicineId IN (:medicineIds) AND administeredAt >= :start AND administeredAt < :end")
+    fun getLogsForMedicinesInRange(medicineIds: List<Long>, start: LocalDateTime, end: LocalDateTime): Flow<List<MedicineLog>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLog(log: MedicineLog): Long
 

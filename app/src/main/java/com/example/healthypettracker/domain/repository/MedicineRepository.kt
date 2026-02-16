@@ -24,6 +24,7 @@ interface MedicineRepository {
 
     fun getLogsForMedicine(medicineId: Long): Flow<List<MedicineLog>>
     fun getRecentLogsForMedicine(medicineId: Long, since: LocalDateTime): Flow<List<MedicineLog>>
+    fun getLogsForMedicinesInRange(medicineIds: List<Long>, start: LocalDateTime, end: LocalDateTime): Flow<List<MedicineLog>>
     suspend fun insertLog(log: MedicineLog): Long
     suspend fun deleteLog(log: MedicineLog)
 }

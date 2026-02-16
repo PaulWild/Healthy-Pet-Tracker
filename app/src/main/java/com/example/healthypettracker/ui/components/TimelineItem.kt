@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Favorite
@@ -19,6 +20,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,7 +56,8 @@ sealed class TimelineEntry(
         dateTime: LocalDateTime,
         catName: String,
         val medicineName: String,
-        val wasSkipped: Boolean
+        val wasSkipped: Boolean,
+        val isScheduled: Boolean = false
     ) : TimelineEntry(dateTime, catName)
 
     class Diary(
@@ -68,9 +76,36 @@ fun TimelineItemCard(
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val isScheduled = entry is TimelineEntry.Medicine && entry.isScheduled
+    val dashedBorderColor = MaterialTheme.colorScheme.outlineVariant
+
     Card(
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (isScheduled) {
+                    Modifier.drawWithContent {
+                        drawContent()
+                        val strokeWidth = 2.dp.toPx()
+                        val cornerRadiusPx = 12.dp.toPx()
+                        drawRoundRect(
+                            color = dashedBorderColor,
+                            topLeft = Offset(strokeWidth / 2, strokeWidth / 2),
+                            size = Size(size.width - strokeWidth, size.height - strokeWidth),
+                            cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx),
+                            style = Stroke(
+                                width = strokeWidth,
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                            )
+                        )
+                    }
+                } else Modifier
+            ),
+        shape = RoundedCornerShape(12.dp),
+        colors = if (isScheduled) CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ) else CardDefaults.cardColors(),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isScheduled) 0.dp else 2.dp),
         onClick = { onClick?.invoke() }
     ) {
         Row(
@@ -138,7 +173,11 @@ private fun getEntryTitle(entry: TimelineEntry): String {
     return when (entry) {
         is TimelineEntry.Weight -> "Weight: ${String.format("%.2f kg", entry.weightGrams / 1000.0)}"
         is TimelineEntry.Food -> "${entry.foodType}${entry.amountGrams?.let { " - ${it}g" } ?: ""}"
-        is TimelineEntry.Medicine -> if (entry.wasSkipped) "${entry.medicineName} (Skipped)" else entry.medicineName
+        is TimelineEntry.Medicine -> when {
+            entry.isScheduled -> "${entry.medicineName} (Scheduled)"
+            entry.wasSkipped -> "${entry.medicineName} (Skipped)"
+            else -> entry.medicineName
+        }
         is TimelineEntry.Diary -> entry.title
     }
 }
@@ -147,7 +186,11 @@ private fun getEntrySubtitle(entry: TimelineEntry): String {
     return when (entry) {
         is TimelineEntry.Weight -> entry.notes ?: "Weight recorded"
         is TimelineEntry.Food -> entry.brandName ?: "Food logged"
-        is TimelineEntry.Medicine -> if (entry.wasSkipped) "Medicine skipped" else "Medicine given"
+        is TimelineEntry.Medicine -> when {
+            entry.isScheduled -> "Medicine due"
+            entry.wasSkipped -> "Medicine skipped"
+            else -> "Medicine given"
+        }
         is TimelineEntry.Diary -> entry.content?.take(100) ?: entry.category
     }
 }

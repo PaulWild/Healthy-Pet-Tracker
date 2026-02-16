@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.healthypettracker.data.local.entity.Cat
 import com.example.healthypettracker.data.local.entity.DiaryNote
 import com.example.healthypettracker.data.local.entity.FoodEntry
+import com.example.healthypettracker.data.local.entity.Medicine
+import com.example.healthypettracker.data.local.entity.MedicineLog
+import com.example.healthypettracker.data.local.entity.MedicineSchedule
 import com.example.healthypettracker.data.local.entity.WeightEntry
 import com.example.healthypettracker.domain.repository.CatRepository
 import com.example.healthypettracker.domain.repository.DiaryRepository
@@ -45,6 +48,8 @@ private sealed class CatData {
     data class Diary(val notes: List<DiaryNote>) : CatData()
     data class Weight(val entries: List<WeightEntry>) : CatData()
     data class Food(val entries: List<FoodEntry>) : CatData()
+    data class MedicineInfo(val catId: Long, val medicines: List<Medicine>, val schedules: Map<Long, List<MedicineSchedule>>) : CatData()
+    data class MedicineLogs(val logs: List<MedicineLog>) : CatData()
 }
 
 @HiltViewModel
@@ -122,13 +127,53 @@ class DiaryViewModel @Inject constructor(
                     weightRepository.getWeightEntriesForDateRange(catId, rangeStart, rangeEnd)
                         .map { CatData.Weight(it) },
                     foodRepository.getFoodEntriesForDateRange(catId, rangeStart, rangeEnd)
-                        .map { CatData.Food(it) }
+                        .map { CatData.Food(it) },
+                    // Medicine info: active medicines and their schedules for each cat
+                    medicineRepository.getActiveMedicinesForCat(catId).flatMapLatest { medicines ->
+                        if (medicines.isEmpty()) {
+                            flowOf(CatData.MedicineInfo(catId, emptyList(), emptyMap()))
+                        } else {
+                            val scheduleFlows = medicines.map { med ->
+                                medicineRepository.getSchedulesForMedicine(med.id)
+                                    .map { schedules -> med.id to schedules }
+                            }
+                            combine(scheduleFlows) { pairs ->
+                                CatData.MedicineInfo(catId, medicines, pairs.toMap())
+                            }
+                        }
+                    }
                 )
             }
 
-            combine(typedFlows) { results ->
+            // Add a single flow for all medicine logs in the date range across all selected cats
+            val medicineIdFlows = catIds.map { catId ->
+                medicineRepository.getActiveMedicinesForCat(catId)
+                    .map { medicines -> medicines.map { it.id } }
+            }
+            val allMedicineIdsFlow: Flow<CatData> = if (medicineIdFlows.isEmpty()) {
+                flowOf(CatData.MedicineLogs(emptyList()))
+            } else {
+                combine(medicineIdFlows) { idLists ->
+                    idLists.flatMap { it }
+                }.flatMapLatest { allMedicineIds ->
+                    if (allMedicineIds.isEmpty()) {
+                        flowOf(CatData.MedicineLogs(emptyList()))
+                    } else {
+                        medicineRepository.getLogsForMedicinesInRange(allMedicineIds, rangeStart, rangeEnd)
+                            .map { CatData.MedicineLogs(it) }
+                    }
+                }
+            }
+
+            val allFlows = typedFlows + allMedicineIdsFlow
+
+            combine(allFlows) { results ->
                 val allEntries = mutableListOf<TimelineEntry>()
                 val catNameMap = _catNameMap.value
+
+                // Collect medicine info and logs separately for scheduled entry generation
+                val medicineInfoList = mutableListOf<CatData.MedicineInfo>()
+                var medicineLogs = emptyList<MedicineLog>()
 
                 results.forEach { data ->
                     when (data) {
@@ -170,11 +215,73 @@ class DiaryViewModel @Inject constructor(
                                 )
                             )
                         }
+
+                        is CatData.MedicineInfo -> medicineInfoList.add(data)
+                        is CatData.MedicineLogs -> medicineLogs = data.logs
                     }
                 }
 
-                // Sort newest first (date filtering already done at DB level)
-                allEntries.sortedByDescending { it.dateTime }
+                // Generate scheduled medicine timeline entries
+                // Index logs by (medicineId, date) for quick lookup
+                val logsByMedicineAndDate = medicineLogs.groupBy { log ->
+                    log.medicineId to log.administeredAt.toLocalDate()
+                }
+
+                var currentDate = loadedRange.startDate
+                while (!currentDate.isAfter(loadedRange.endDate)) {
+                    val dayOfWeekValue = currentDate.dayOfWeek.value
+
+                    for (info in medicineInfoList) {
+                        val catName = catNameMap[info.catId] ?: "Unknown"
+
+                        for (medicine in info.medicines) {
+                            val schedules = info.schedules[medicine.id] ?: continue
+
+                            for (schedule in schedules) {
+                                // Check day-of-week bitmask
+                                if (!schedule.isScheduledOn(dayOfWeekValue)) continue
+
+                                // Check start/end date bounds
+                                if (schedule.startDate != null && currentDate.isBefore(schedule.startDate)) continue
+                                if (schedule.endDate != null && currentDate.isAfter(schedule.endDate)) continue
+
+                                val key = medicine.id to currentDate
+                                val logsForDay = logsByMedicineAndDate[key]
+
+                                if (logsForDay.isNullOrEmpty()) {
+                                    // No log exists — show as scheduled (dashed)
+                                    allEntries.add(
+                                        TimelineEntry.Medicine(
+                                            dateTime = LocalDateTime.of(currentDate, schedule.scheduledTime),
+                                            catName = catName,
+                                            medicineName = medicine.name,
+                                            wasSkipped = false,
+                                            isScheduled = true
+                                        )
+                                    )
+                                } else {
+                                    // Log exists — show as confirmed (solid)
+                                    for (log in logsForDay) {
+                                        allEntries.add(
+                                            TimelineEntry.Medicine(
+                                                dateTime = log.administeredAt,
+                                                catName = catName,
+                                                medicineName = medicine.name,
+                                                wasSkipped = log.wasSkipped,
+                                                isScheduled = false
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    currentDate = currentDate.plusDays(1)
+                }
+
+                // Sort earliest first (date filtering already done at DB level)
+                allEntries.sortedBy { it.dateTime }
             }
         }
     }.stateIn(
