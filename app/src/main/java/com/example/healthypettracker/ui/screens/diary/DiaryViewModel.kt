@@ -48,23 +48,24 @@ class DiaryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    private val _selectedCatId = MutableStateFlow<Long?>(null)
-    val selectedCatId: StateFlow<Long?> = _selectedCatId.asStateFlow()
+    private val _selectedCatIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedCatIds: StateFlow<Set<Long>> = _selectedCatIds.asStateFlow()
 
     private val _catNameMap = MutableStateFlow<Map<Long, String>>(emptyMap())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val timelineEntries: StateFlow<List<TimelineEntry>> = combine(
         cats,
-        _selectedCatId
-    ) { catsList, selectedId ->
+        _selectedCatIds
+    ) { catsList, selectedIds ->
         _catNameMap.value = catsList.associate { it.id to it.name }
-        selectedId to catsList
-    }.flatMapLatest { (selectedId, catsList) ->
+        selectedIds to catsList
+    }.flatMapLatest { (selectedIds, catsList) ->
         if (catsList.isEmpty()) {
             flowOf(emptyList())
         } else {
-            val catIds = if (selectedId != null) listOf(selectedId) else catsList.map { it.id }
+            // Empty set means all cats selected
+            val catIds = if (selectedIds.isEmpty()) catsList.map { it.id } else selectedIds.toList()
 
             // Create typed flows for each data source
             val typedFlows: List<Flow<CatData>> = catIds.flatMap { catId ->
@@ -129,7 +130,15 @@ class DiaryViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    fun selectCat(catId: Long?) {
-        _selectedCatId.value = catId
+    fun toggleCatSelection(catId: Long) {
+        _selectedCatIds.value = if (catId in _selectedCatIds.value) {
+            _selectedCatIds.value - catId
+        } else {
+            _selectedCatIds.value + catId
+        }
+    }
+
+    fun selectAllCats() {
+        _selectedCatIds.value = emptySet()
     }
 }
