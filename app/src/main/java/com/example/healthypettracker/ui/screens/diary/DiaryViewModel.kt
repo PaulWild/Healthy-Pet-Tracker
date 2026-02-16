@@ -13,6 +13,7 @@ import com.example.healthypettracker.domain.repository.MedicineRepository
 import com.example.healthypettracker.domain.repository.WeightRepository
 import com.example.healthypettracker.ui.components.TimelineEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -51,21 +52,36 @@ class DiaryViewModel @Inject constructor(
     private val _selectedCatIds = MutableStateFlow<Set<Long>>(emptySet())
     val selectedCatIds: StateFlow<Set<Long>> = _selectedCatIds.asStateFlow()
 
+    private val _selectedDate = MutableStateFlow(LocalDate.now())
+    val selectedDate: StateFlow<LocalDate> = _selectedDate.asStateFlow()
+
+    private var hasInitializedSelection = false
     private val _catNameMap = MutableStateFlow<Map<Long, String>>(emptyMap())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val timelineEntries: StateFlow<List<TimelineEntry>> = combine(
         cats,
-        _selectedCatIds
-    ) { catsList, selectedIds ->
+        _selectedCatIds,
+        _selectedDate
+    ) { catsList, selectedIds, selectedDate ->
         _catNameMap.value = catsList.associate { it.id to it.name }
-        selectedIds to catsList
-    }.flatMapLatest { (selectedIds, catsList) ->
+        Triple(selectedIds, catsList, selectedDate)
+    }.flatMapLatest { (selectedIds, catsList, selectedDate) ->
         if (catsList.isEmpty()) {
             flowOf(emptyList())
         } else {
-            // Empty set means all cats selected
-            val catIds = if (selectedIds.isEmpty()) catsList.map { it.id } else selectedIds.toList()
+            // On first load, select all cats
+            val catIds = if (!hasInitializedSelection) {
+                hasInitializedSelection = true
+                val allCatIds = catsList.map { it.id }.toSet()
+                _selectedCatIds.value = allCatIds
+                allCatIds.toList()
+            } else if (selectedIds.isEmpty()) {
+                // User deselected all cats - show no entries
+                return@flatMapLatest flowOf(emptyList())
+            } else {
+                selectedIds.toList()
+            }
 
             // Create typed flows for each data source
             val typedFlows: List<Flow<CatData>> = catIds.flatMap { catId ->
@@ -120,8 +136,10 @@ class DiaryViewModel @Inject constructor(
                     }
                 }
 
-                // Sort by date, newest first
-                allEntries.sortedByDescending { it.dateTime }
+                // Filter by selected date and sort by time, newest first
+                allEntries
+                    .filter { it.dateTime.toLocalDate() == selectedDate }
+                    .sortedByDescending { it.dateTime }
             }
         }
     }.stateIn(
@@ -138,7 +156,12 @@ class DiaryViewModel @Inject constructor(
         }
     }
 
-    fun selectAllCats() {
-        _selectedCatIds.value = emptySet()
+    fun goToPreviousDay() {
+        _selectedDate.value = _selectedDate.value.minusDays(1)
     }
+
+    fun goToNextDay() {
+        _selectedDate.value = _selectedDate.value.plusDays(1)
+    }
+
 }
