@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -77,8 +76,7 @@ fun DiaryScreen(
                         CatSelectorHeader(
                             cats = cats,
                             selectedCatIds = selectedCatIds,
-                            onToggleCat = { viewModel.toggleCatSelection(it) },
-                            onSelectAll = { viewModel.selectAllCats() }
+                            onToggleCat = { viewModel.toggleCatSelection(it) }
                         )
                     }
                 }
@@ -210,25 +208,37 @@ private fun DateHeader(date: LocalDate) {
 private fun CatSelectorHeader(
     cats: List<Cat>,
     selectedCatIds: Set<Long>,
-    onToggleCat: (Long) -> Unit,
-    onSelectAll: () -> Unit
+    onToggleCat: (Long) -> Unit
 ) {
     var showSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
-    val displayCats = if (selectedCatIds.isEmpty()) cats else cats.filter { it.id in selectedCatIds }
+    // Show all cats when all are selected, otherwise show only selected
+    val displayCats = if (selectedCatIds.size == cats.size) cats else cats.filter { it.id in selectedCatIds }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        // Overlapping avatars (50% overlap)
-        Box(
-            modifier = Modifier.width((32 + (displayCats.size - 1).coerceAtLeast(0) * 16).dp)
-        ) {
-            displayCats.forEachIndexed { index, cat ->
-                SmallCatAvatar(
-                    cat = cat,
-                    modifier = Modifier
-                        .offset(x = (index * 16).dp)
-                        .zIndex((displayCats.size - index).toFloat())
-                )
+        if (displayCats.isEmpty()) {
+            // Show "None" when no cats selected
+            Text(
+                text = "None",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.clickable { showSheet = true }
+            )
+        } else {
+            // Overlapping avatars (50% overlap) - clickable to open sheet
+            Box(
+                modifier = Modifier
+                    .width((32 + (displayCats.size - 1).coerceAtLeast(0) * 16).dp)
+                    .clickable { showSheet = true }
+            ) {
+                displayCats.forEachIndexed { index, cat ->
+                    SmallCatAvatar(
+                        cat = cat,
+                        modifier = Modifier
+                            .offset(x = (index * 16).dp)
+                            .zIndex((displayCats.size - index).toFloat())
+                    )
+                }
             }
         }
 
@@ -247,8 +257,7 @@ private fun CatSelectorHeader(
             CatSelectorSheetContent(
                 cats = cats,
                 selectedCatIds = selectedCatIds,
-                onToggleCat = onToggleCat,
-                onSelectAll = onSelectAll
+                onToggleCat = onToggleCat
             )
         }
     }
@@ -258,29 +267,17 @@ private fun CatSelectorHeader(
 private fun CatSelectorSheetContent(
     cats: List<Cat>,
     selectedCatIds: Set<Long>,
-    onToggleCat: (Long) -> Unit,
-    onSelectAll: () -> Unit
+    onToggleCat: (Long) -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
     ) {
-        // "All cats" option at top
-        SelectableCatCard(
-            cat = null,
-            name = "All Cats",
-            isSelected = selectedCatIds.isEmpty(),
-            onClick = onSelectAll
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // List of cat cards
+        // List of cat cards only - no "All Cats" option
         cats.forEach { cat ->
             SelectableCatCard(
                 cat = cat,
-                name = cat.name,
                 isSelected = cat.id in selectedCatIds,
                 onClick = { onToggleCat(cat.id) }
             )
@@ -294,8 +291,7 @@ private fun CatSelectorSheetContent(
 
 @Composable
 private fun SelectableCatCard(
-    cat: Cat?,
-    name: String,
+    cat: Cat,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -330,38 +326,21 @@ private fun SelectableCatCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (cat != null) {
-                // Cat avatar
-                SmallCatAvatar(cat = cat, modifier = Modifier.size(48.dp))
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = cat.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    cat.breed?.let { breed ->
-                        Text(
-                            text = breed,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else {
-                // "All cats" row
-                Icon(
-                    imageVector = Icons.Default.Favorite,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(16.dp))
+            SmallCatAvatar(cat = cat, modifier = Modifier.size(48.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
                 Text(
-                    text = name,
+                    text = cat.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
+                cat.breed?.let { breed ->
+                    Text(
+                        text = breed,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
