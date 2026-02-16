@@ -250,7 +250,7 @@ fun AppNavigation() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.CatList.route,
+            startDestination = Screen.Diary.route,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.CatList.route) {
